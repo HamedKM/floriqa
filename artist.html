@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artist – Floriqa</title>
+  <link rel="icon" href="images/favicon.ico" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/floriqa.css" />
+</head>
+<body>
+  <main class="page" id="content"></main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    const { sb, esc, media, buildChrome } = Floriqa;
+    buildChrome({ active: "Artists" });
+    (async () => {
+      const el = document.getElementById("content");
+      const slug = new URLSearchParams(location.search).get("a");
+      const { data: a } = await sb.from("floriqa_artists")
+        .select("id,slug,name,tagline,bio,photo_url,card_url,instagram, floriqa_tracks(title,audio_url,sort), floriqa_videos(title,video_url,vertical,sort)")
+        .eq("slug", slug || "").maybeSingle();
+      if (!a) { el.innerHTML = `<div class="glass soon">Artist not found. <a href="artists.html">See all artists</a></div>`; return; }
+      document.title = `${a.name} – Floriqa`;
+      const by = (x, y) => x.sort - y.sort;
+      const tracks = (a.floriqa_tracks || []).sort(by);
+      const vids = (a.floriqa_videos || []).sort(by);
+      const vV = vids.filter(v => v.vertical), vH = vids.filter(v => !v.vertical);
+      const video = (v, cls) => `<div class="${cls}"><video controls preload="metadata" playsinline src="${esc(media(v.video_url))}"></video></div>`;
+      const photo = a.photo_url || a.card_url;
+      const book = `affair.html?artist=${encodeURIComponent(a.name)}`;
+      el.innerHTML = `
+        <div class="artist-layout">
+          <aside class="artist-side">
+            ${photo ? `<div class="artist-photo"><img src="${esc(media(photo))}" alt="${esc(a.name)}"></div>` : ""}
+            <a class="btn-glass" href="${book}">Book ${esc(a.name)} now</a>
+            ${a.instagram ? `<a class="btn-glass" style="margin-top:-.4rem" href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}
+            ${vV.map(v => video(v, "video-v")).join("")}
+          </aside>
+          <section>
+            <div class="artist-head"><h1>${esc(a.name)}</h1><p class="tag">${esc(a.tagline || "")}</p></div>
+            ${a.bio ? `<div class="artist-bio glass">${esc(a.bio)}</div>` : ""}
+            ${vH.map(v => video(v, "video-h")).join("")}
+            ${tracks.length ? `<div class="tracks glass">${tracks.map(t => `<div class="t"><strong>${esc(t.title)}</strong><audio controls preload="none" src="${esc(media(t.audio_url))}"></audio></div>`).join("")}</div>` : ""}
+            ${!tracks.length && !vids.length && !a.bio ? `<div class="glass soon">Music and videos coming soon.</div>` : ""}
+          </section>
+        </div>`;
+      // une seule lecture à la fois
+      el.addEventListener("play", e => el.querySelectorAll("audio,video").forEach(m => m !== e.target && m.pause()), true);
+    })();
+  </script>
+</body>
+</html>

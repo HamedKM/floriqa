@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artists – Floriqa</title>
+  <link rel="icon" href="images/favicon.ico" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/floriqa.css" />
+</head>
+<body>
+  <main class="page">
+    <div class="artist-grid" id="grid"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    const { sb, esc, media, buildChrome } = Floriqa;
+    buildChrome({ active: "Artists" });
+    (async () => {
+      const grid = document.getElementById("grid");
+      const { data, error } = await sb.from("floriqa_artists").select("slug,name,tagline,card_url,photo_url").eq("published", true).order("sort").order("name");
+      if (error) { grid.innerHTML = `<div class="glass soon">Artists are loading slowly… please refresh.</div>`; return; }
+      grid.innerHTML = data.map(a => `
+        <a class="artist-card glass" href="artist.html?a=${encodeURIComponent(a.slug)}">
+          <div class="img">${(a.card_url || a.photo_url) ? `<img loading="lazy" src="${esc(media(a.card_url || a.photo_url))}" alt="${esc(a.name)}">` : ""}</div>
+          <div class="name">${esc(a.name)}</div>
+          <div class="tag">${esc(a.tagline || "")}</div>
+        </a>`).join("");
+    })();
+  </script>
+</body>
+</html>

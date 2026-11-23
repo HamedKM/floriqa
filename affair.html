@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Affair – Booking – Floriqa</title>
+  <link rel="icon" href="images/favicon.ico" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/floriqa.css" />
+</head>
+<body>
+  <main class="page">
+    <form id="bookingForm" class="form glass" novalidate>
+      <h3>ARTIST</h3>
+      <select id="artist" name="artist_name" required>
+        <option value="" disabled selected>Select an artist</option>
+      </select>
+
+      <h3>PROMOTER DETAILS</h3>
+      <input type="text" name="organization" placeholder="Organisation" required maxlength="200" />
+      <input type="text" name="promoter" placeholder="Promoter" required maxlength="200" />
+      <div class="row2">
+        <input type="tel" name="phone" placeholder="+216 99 999 999" required maxlength="40" />
+        <input type="email" name="email" placeholder="Promoter's e-mail address" required maxlength="200" />
+      </div>
+
+      <h3>EVENT DETAILS</h3>
+      <input type="text" name="event" placeholder="Event" required maxlength="200" />
+      <input type="text" name="venue" placeholder="Venue" required maxlength="200" />
+      <input type="text" name="dates" placeholder="Event date(s)" required maxlength="200" />
+      <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
+      <div class="row2">
+        <input type="text" name="country" placeholder="Country" required maxlength="100" />
+        <input type="text" name="city" placeholder="City" required maxlength="100" />
+      </div>
+      <input type="url" name="social_link" placeholder="Instagram or Facebook link (optional)" maxlength="300" />
+
+      <h3>PERFORMANCE</h3>
+      <label class="toggle-line off" data-for="b2b">
+        <span class="switch"><input type="checkbox" id="t_b2b"><span class="slider"></span></span>
+        <span class="title">B2B</span>
+      </label>
+      <div class="toggle-content hidden" id="c_b2b"><input type="text" name="b2b" placeholder="B2B (artist name)" maxlength="200"></div>
+      <div class="row2">
+        <input type="text" name="duration" placeholder="Duration of performance (hours)" required maxlength="50" />
+        <input type="text" name="perf_time" placeholder="Time of performance (e.g. 22h - 00h)" required maxlength="50" />
+      </div>
+
+      <h3>OFFER DETAILS</h3>
+      <input type="text" name="fee" placeholder="Net fee offer in €" required maxlength="50" />
+      <label class="toggle-line" data-for="transport">
+        <span class="switch"><input type="checkbox" id="t_transport" checked><span class="slider"></span></span>
+        <span class="title">+ Transport</span>
+      </label>
+      <div class="toggle-content" id="c_transport"><input type="text" name="transport_details" placeholder="Driver or reimbursement?" maxlength="300"></div>
+      <label class="toggle-line" data-for="accommodation">
+        <span class="switch"><input type="checkbox" id="t_accommodation" checked><span class="slider"></span></span>
+        <span class="title">+ Accommodation</span>
+      </label>
+      <div class="toggle-content" id="c_accommodation"><input type="text" name="accommodation_details" placeholder="Lodging or reimbursement?" maxlength="300"></div>
+      <label class="toggle-line" data-for="hospitality">
+        <span class="switch"><input type="checkbox" id="t_hospitality" checked><span class="slider"></span></span>
+        <span class="title">+ Hospitality</span>
+      </label>
+      <div class="toggle-content" id="c_hospitality"><input type="text" name="hospitality_details" placeholder="Hospitality details..." maxlength="300"></div>
+
+      <!-- piège anti-robots : reste vide pour les humains -->
+      <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+
+      <button class="btn-white" type="submit" id="sendBtn">Send Booking Request</button>
+    </form>
+
+    <div id="done" class="success glass hidden">
+      <h2>THANK YOU</h2>
+      <p>Your booking request has been received. We'll get back to you by e-mail very soon.</p>
+      <a class="btn-white" style="display:inline-block;text-decoration:none" href="artists.html">Back to artists</a>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    const { sb, cfg, buildChrome, toast } = Floriqa;
+    buildChrome({ active: "Affair" });
+
+    const form = document.getElementById("bookingForm");
+    const select = document.getElementById("artist");
+    const wanted = new URLSearchParams(location.search).get("artist");
+
+    (async () => {
+      const { data } = await sb.from("floriqa_artists").select("name").eq("published", true).order("sort").order("name");
+      (data || []).forEach(a => select.add(new Option(a.name, a.name)));
+      if (wanted) {
+        const opt = [...select.options].find(o => o.value.toLowerCase() === wanted.toLowerCase());
+        if (opt) opt.selected = true; else select.add(new Option(wanted, wanted, true, true));
+      }
+    })();
+
+    // interrupteurs OUI/NON
+    document.querySelectorAll(".toggle-line").forEach(line => {
+      const key = line.dataset.for;
+      const box = document.getElementById("t_" + key);
+      const content = document.getElementById("c_" + key);
+      const update = () => { line.classList.toggle("off", !box.checked); content.classList.toggle("hidden", !box.checked); };
+      box.addEventListener("change", update); update();
+    });
+
+    const socialOk = (u) => !u || /^(https?:\/\/)?(www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)\/\S+$/i.test(u.trim());
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if (fd.get("website")) return; // robot
+      const missing = [...form.querySelectorAll("[required]")].find(i => !String(i.value).trim());
+      if (missing) { missing.focus(); toast("Please fill in all required fields.", "err"); return; }
+      const emailEl = form.querySelector("[name=email]");
+      if (!emailEl.checkValidity()) { emailEl.focus(); toast("Please enter a valid e-mail address.", "err"); return; }
+      if (!socialOk(fd.get("social_link"))) { toast("Please enter a valid Instagram or Facebook link, or leave it empty.", "err"); return; }
+
+      const t = (k) => document.getElementById("t_" + k).checked;
+      const v = (k) => (fd.get(k) || "").toString().trim() || null;
+      const row = {
+        artist_name: v("artist_name"), organization: v("organization"), promoter: v("promoter"), phone: v("phone"), email: v("email"),
+        event: v("event"), venue: v("venue"), dates: v("dates"), lineup: v("lineup"), country: v("country"), city: v("city"),
+        social_link: v("social_link"), b2b: t("b2b") ? v("b2b") : null, duration: v("duration"), perf_time: v("perf_time"), fee: v("fee"),
+        transport: t("transport"), transport_details: t("transport") ? v("transport_details") : null,
+        accommodation: t("accommodation"), accommodation_details: t("accommodation") ? v("accommodation_details") : null,
+        hospitality: t("hospitality"), hospitality_details: t("hospitality") ? v("hospitality_details") : null,
+      };
+
+      const btn = document.getElementById("sendBtn");
+      btn.disabled = true; btn.textContent = "Sending…";
+      const { error } = await sb.from("floriqa_bookings").insert(row);
+      if (error) {
+        btn.disabled = false; btn.textContent = "Send Booking Request";
+        toast("Sorry, the request could not be sent. Please try again.", "err");
+        console.error(error); return;
+      }
+      // alerte e-mail (facultative)
+      if (cfg.notifyEmail) {
+        fetch(`https://formsubmit.co/ajax/${encodeURIComponent(cfg.notifyEmail)}`, {
+          method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ _subject: `Floriqa – new booking: ${row.artist_name} @ ${row.event}`, _template: "table", _replyto: row.email, ...row }),
+        }).catch(() => {});
+      }
+      form.classList.add("hidden");
+      document.getElementById("done").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
+</body>
+</html>

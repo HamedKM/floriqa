@@ -1,0 +1,75 @@
+// Floriqa — éléments communs à toutes les pages (menu, vidéo, connexion base)
+(function () {
+  const cfg = window.FLORIQA_CONFIG;
+  const BASE = window.FLQ_BASE || "";
+  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const media = (u) => (!u ? "" : /^https?:\/\//.test(u) ? u : BASE + u);
+
+  const NAV = [
+    ["Garden", "index.html"],
+    ["Artists", "artists.html"],
+    ["Affair", "affair.html"],
+    ["Room", "room/"],
+  ];
+
+  function buildChrome(opts = {}) {
+    const here = opts.active || "";
+    if (opts.video !== false) {
+      const wrap = document.createElement("div");
+      wrap.className = "video-bg";
+      const mobile = window.matchMedia("(max-width: 767px)").matches;
+      const src = BASE + (mobile ? "videos/garden-mobile-light.mp4" : "videos/garden-desktop-light.mp4");
+      wrap.innerHTML = `<video autoplay loop muted playsinline poster="${BASE}videos/garden-poster.jpg"><source src="${src}" type="video/mp4"></video><div class="video-shade"></div>`;
+      document.body.prepend(wrap);
+    }
+    const links = NAV.map(([t, h]) => `<a href="${BASE}${h}" class="${t === here ? "active" : ""}">${t}</a>`).join("");
+    const nav = document.createElement("header");
+    nav.className = "navbar";
+    nav.innerHTML = `
+      <a class="logo-phrase" href="${BASE}index.html" aria-label="Floriqa — accueil"></a>
+      <nav class="nav-links">${links}</nav>
+      <button class="burger" aria-label="Menu"><span></span><span></span><span></span></button>`;
+    document.body.prepend(nav);
+    const menu = document.createElement("div");
+    menu.className = "mobile-menu";
+    menu.innerHTML = links;
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+    document.body.append(overlay, menu);
+
+    const logo = nav.querySelector(".logo-phrase");
+    (cfg.logoLines || ["FLORIQA"]).forEach((line) => {
+      const l = document.createElement("div");
+      [...line].forEach((ch) => {
+        const s = document.createElement("span");
+        s.textContent = ch;
+        s.style.animationDelay = `${Math.random() * 2}s`;
+        l.appendChild(s);
+      });
+      logo.appendChild(l);
+    });
+
+    const burger = nav.querySelector(".burger");
+    const close = () => { menu.classList.remove("show"); overlay.classList.remove("show"); burger.classList.remove("hidden"); };
+    burger.addEventListener("click", () => { burger.classList.add("hidden"); menu.classList.add("show"); overlay.classList.add("show"); });
+    overlay.addEventListener("click", close);
+    menu.addEventListener("click", close);
+  }
+
+  function toast(msg, type = "ok") {
+    const t = document.createElement("div");
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add("show"));
+    setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, 3500);
+  }
+
+  const fmtSize = (b) => (b == null ? "" : b > 1048576 ? (b / 1048576).toFixed(1) + " Mo" : Math.max(1, Math.round(b / 1024)) + " Ko");
+  const fmtDate = (d) => new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  window.Floriqa = { sb, esc, media, BASE, cfg, buildChrome, toast, fmtSize, fmtDate };
+})();

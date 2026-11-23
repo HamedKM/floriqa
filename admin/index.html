@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Admin – Floriqa</title>
+  <link rel="icon" href="../images/favicon.ico" />
+  <link rel="stylesheet" href="../assets/floriqa.css" />
+</head>
+<body class="app">
+  <main class="app-wrap">
+    <!-- Connexion -->
+    <section id="login" class="card auth-box hidden">
+      <h2>Admin Floriqa</h2>
+      <form id="loginForm">
+        <label class="field"><span>E-mail</span><input type="email" name="email" required autocomplete="username"></label>
+        <label class="field"><span>Mot de passe</span><input type="password" name="password" required autocomplete="current-password"></label>
+        <button class="btn primary" type="submit">Se connecter</button>
+      </form>
+      <p class="muted" style="margin-top:1rem">Pas encore de compte ? Crée-le depuis <a href="../room/">la Room</a>.</p>
+    </section>
+
+    <section id="denied" class="card auth-box hidden">
+      <h2>Accès refusé</h2>
+      <p class="muted">Ce compte n'est pas administrateur de Floriqa.</p>
+      <p style="margin-top:1rem"><button class="btn" data-logout>Se déconnecter</button></p>
+    </section>
+
+    <!-- Panneau -->
+    <section id="panel" class="hidden">
+      <div class="toolbar">
+        <h2 class="grow">Panneau admin</h2>
+        <span class="muted" id="who"></span>
+        <a class="btn" href="../room/">Room</a>
+        <button class="btn" data-logout>Déconnexion</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="bookings">Bookings <span class="badge" id="nNew"></span></button>
+        <button class="tab" data-tab="artists">Artistes</button>
+        <button class="tab" data-tab="members">Membres de la Room <span class="badge" id="nReq"></span></button>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div data-pane="bookings">
+        <div class="stats" id="bkStats"></div>
+        <div class="toolbar">
+          <select id="bkFilter" style="max-width:220px">
+            <option value="open">À traiter (nouveaux + en cours)</option>
+            <option value="all">Toutes</option>
+            <option value="new">Nouvelles</option>
+            <option value="in_progress">En cours</option>
+            <option value="accepted">Acceptées</option>
+            <option value="declined">Refusées</option>
+            <option value="archived">Archivées</option>
+          </select>
+          <input type="text" id="bkSearch" placeholder="Rechercher (artiste, événement, organisateur…)" class="grow" style="max-width:420px">
+          <button class="btn" id="bkRefresh">Actualiser</button>
+        </div>
+        <div class="split">
+          <div id="bkList"></div>
+          <div id="bkDetail" class="card"><p class="muted">Sélectionne une demande à gauche.</p></div>
+        </div>
+      </div>
+
+      <!-- ARTISTES -->
+      <div data-pane="artists" class="hidden">
+        <div class="split">
+          <div>
+            <button class="btn primary" id="arNew" style="width:100%;justify-content:center;margin-bottom:.8rem">+ Nouvel artiste</button>
+            <div id="arList"></div>
+          </div>
+          <div id="arDetail" class="card"><p class="muted">Sélectionne un artiste à gauche.</p></div>
+        </div>
+      </div>
+
+      <!-- MEMBRES -->
+      <div data-pane="members" class="hidden">
+        <div class="card">
+          <h3>Demandes d'accès</h3>
+          <p class="muted" style="margin:.3rem 0 1rem">Les artistes et l'équipe créent leur compte sur la page Room, puis tu les acceptes ici.</p>
+          <div id="reqList"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:1rem">Membres</h3>
+          <div id="memList"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>window.FLQ_BASE = "../";</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/common.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
