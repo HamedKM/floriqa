@@ -11,8 +11,10 @@
   --font: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { min-height: 100%; font-family: var(--font); color: var(--text); background: #0d0f14; }
-body.home { height: 100vh; overflow: hidden; background: #000; }
+html { background: #000; }
+html, body { min-height: 100%; font-family: var(--font); color: var(--text); }
+body { background: transparent; }
+body.home { height: 100vh; overflow: hidden; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
 
