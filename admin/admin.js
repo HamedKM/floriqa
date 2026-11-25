@@ -240,7 +240,9 @@ function artistForm(a) {
 
   $("#arDetail").innerHTML = `
     <div class="toolbar"><h3 class="grow">${isNew ? "New artist" : esc(a.name)}</h3>
-      ${isNew ? "" : `<a class="btn small" target="_blank" href="../artist.html?a=${esc(a.slug)}">View public page ↗</a>`}</div>
+      ${isNew ? "" : `<a class="btn small" target="_blank" href="../artist.html?a=${esc(a.slug)}">View public page ↗</a>
+        <a class="btn small" target="_blank" rel="noopener" href="${esc(Floriqa.bookingUrl(a.name))}">Booking form ↗</a>
+        <button class="btn small" type="button" id="arBookCopy">Copy booking link</button>`}</div>
     <form id="arForm">
       <div class="row2">
         <label class="field"><span>Name (solo, duo, trio, band…)</span><input type="text" name="name" required value="${esc(a.name)}"></label>
@@ -349,6 +351,7 @@ function artistForm(a) {
     arSel = data.id; loadArtists();
   });
   if (isNew) return;
+  $("#arBookCopy").onclick = () => Floriqa.copyText(Floriqa.bookingUrl(a.name));
 
   if ($("#mgSave")) $("#mgSave").onclick = async () => {
     const want = $$("#mgPick input:checked").map((x) => x.value), have = managersOf(a.id);

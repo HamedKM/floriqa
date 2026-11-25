@@ -80,3 +80,7 @@
 
   window.Floriqa = { sb, esc, media, BASE, cfg, buildChrome, toast, fmtSize, fmtDate, mail };
 })();
+
+// Lien vers le formulaire de booking avec l'artiste pré-rempli
+window.Floriqa.bookingUrl = (name) => new URL(`affair.html?artist=${encodeURIComponent(name)}`, new URL(window.Floriqa.BASE || "./", location.href)).href;
+window.Floriqa.copyText = async (t) => { try { await navigator.clipboard.writeText(t); window.Floriqa.toast("Link copied."); } catch { prompt("Copy this link:", t); } };
