@@ -38,7 +38,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795650399" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795650463" />
 </head>
 <body>
   <main class="page">
@@ -50,7 +50,7 @@
 
       <h3>PROMOTER DETAILS</h3>
       <input type="text" name="organization" placeholder="Organisation" required maxlength="200" />
-      <input type="text" name="promoter" placeholder="Promoter" required maxlength="200" />
+      <input type="text" name="promoter" placeholder="Promoter's name" required maxlength="200" />
       <div class="row2">
         <input type="tel" name="phone" placeholder="+216 99 999 999" required maxlength="40" />
         <input type="email" name="email" placeholder="Promoter's e-mail address" required maxlength="200" />
@@ -104,8 +104,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795650399"></script>
-  <script src="assets/common.js?v=1795650399"></script>
+  <script src="assets/config.js?v=1795650463"></script>
+  <script src="assets/common.js?v=1795650463"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -151,7 +151,7 @@
         .split(" ").map(c => ({ c, n: names.of(c), f: flag(c) })).sort((a, b) => a.n.localeCompare(b.n, "en"));
       const norm = (x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       let cur = null;
-      const paint = () => { field.innerHTML = cur ? `<span class="flag">${cur.f}</span><span>${cur.n}</span>` : `<span class="flag">🌍</span><span class="empty">Country</span>`; };
+      const paint = () => { field.innerHTML = cur ? `<span class="flag">${cur.f}</span><span>${cur.n}</span>` : `<span class="empty">Country</span>`; };
       paint();
       const open = () => {
         if (openPop?.dataset.for === "country") return closePop();
