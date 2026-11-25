@@ -15,11 +15,10 @@
     .form .date-field .del { background: none; border: 0; padding: 0 .1rem; font: inherit; font-size: 1.15rem; line-height: 1; color: var(--navy); cursor: pointer; }
     .form .date-field input[type=date] { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; pointer-events: none; }
     .form .link-btn { display: block; background: none; border: 0; color: #fff; font: inherit; font-size: .95rem; cursor: pointer; padding: 0; margin: -.3rem 0 .9rem; }
-    .form .time3 { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: .4rem; }
     .form select:invalid { color: rgba(34,58,92,.6); }
     .form select option { color: var(--navy); }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795648904" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795649192" />
 </head>
 <body>
   <main class="page">
@@ -57,14 +56,8 @@
       </label>
       <div class="toggle-content hidden" id="c_b2b"><input type="text" name="b2b" placeholder="B2B (artist name)" maxlength="200"></div>
       <div class="row2">
-        <div><div class="time3" data-time="start">
-          <select data-h required aria-label="Set starts hour"><option value="" disabled selected>Start</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-          <select data-m aria-label="Set starts minutes"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
-          <select data-ap aria-label="Set starts AM or PM"><option>PM</option><option>AM</option></select></div></div>
-        <div><div class="time3" data-time="end">
-          <select data-h required aria-label="Set ends hour"><option value="" disabled selected>End</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
-          <select data-m aria-label="Set ends minutes"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
-          <select data-ap aria-label="Set ends AM or PM"><option>PM</option><option>AM</option></select></div></div>
+        <select data-time="start" required aria-label="Set starts"><option value="" disabled selected>Set starts</option><option value="0">12:00 AM</option><option value="15">12:15 AM</option><option value="30">12:30 AM</option><option value="45">12:45 AM</option><option value="60">1:00 AM</option><option value="75">1:15 AM</option><option value="90">1:30 AM</option><option value="105">1:45 AM</option><option value="120">2:00 AM</option><option value="135">2:15 AM</option><option value="150">2:30 AM</option><option value="165">2:45 AM</option><option value="180">3:00 AM</option><option value="195">3:15 AM</option><option value="210">3:30 AM</option><option value="225">3:45 AM</option><option value="240">4:00 AM</option><option value="255">4:15 AM</option><option value="270">4:30 AM</option><option value="285">4:45 AM</option><option value="300">5:00 AM</option><option value="315">5:15 AM</option><option value="330">5:30 AM</option><option value="345">5:45 AM</option><option value="360">6:00 AM</option><option value="375">6:15 AM</option><option value="390">6:30 AM</option><option value="405">6:45 AM</option><option value="420">7:00 AM</option><option value="435">7:15 AM</option><option value="450">7:30 AM</option><option value="465">7:45 AM</option><option value="480">8:00 AM</option><option value="495">8:15 AM</option><option value="510">8:30 AM</option><option value="525">8:45 AM</option><option value="540">9:00 AM</option><option value="555">9:15 AM</option><option value="570">9:30 AM</option><option value="585">9:45 AM</option><option value="600">10:00 AM</option><option value="615">10:15 AM</option><option value="630">10:30 AM</option><option value="645">10:45 AM</option><option value="660">11:00 AM</option><option value="675">11:15 AM</option><option value="690">11:30 AM</option><option value="705">11:45 AM</option><option value="720">12:00 PM</option><option value="735">12:15 PM</option><option value="750">12:30 PM</option><option value="765">12:45 PM</option><option value="780">1:00 PM</option><option value="795">1:15 PM</option><option value="810">1:30 PM</option><option value="825">1:45 PM</option><option value="840">2:00 PM</option><option value="855">2:15 PM</option><option value="870">2:30 PM</option><option value="885">2:45 PM</option><option value="900">3:00 PM</option><option value="915">3:15 PM</option><option value="930">3:30 PM</option><option value="945">3:45 PM</option><option value="960">4:00 PM</option><option value="975">4:15 PM</option><option value="990">4:30 PM</option><option value="1005">4:45 PM</option><option value="1020">5:00 PM</option><option value="1035">5:15 PM</option><option value="1050">5:30 PM</option><option value="1065">5:45 PM</option><option value="1080">6:00 PM</option><option value="1095">6:15 PM</option><option value="1110">6:30 PM</option><option value="1125">6:45 PM</option><option value="1140">7:00 PM</option><option value="1155">7:15 PM</option><option value="1170">7:30 PM</option><option value="1185">7:45 PM</option><option value="1200">8:00 PM</option><option value="1215">8:15 PM</option><option value="1230">8:30 PM</option><option value="1245">8:45 PM</option><option value="1260">9:00 PM</option><option value="1275">9:15 PM</option><option value="1290">9:30 PM</option><option value="1305">9:45 PM</option><option value="1320">10:00 PM</option><option value="1335">10:15 PM</option><option value="1350">10:30 PM</option><option value="1365">10:45 PM</option><option value="1380">11:00 PM</option><option value="1395">11:15 PM</option><option value="1410">11:30 PM</option><option value="1425">11:45 PM</option></select>
+        <select data-time="end" required aria-label="Set ends"><option value="" disabled selected>Set ends</option><option value="0">12:00 AM</option><option value="15">12:15 AM</option><option value="30">12:30 AM</option><option value="45">12:45 AM</option><option value="60">1:00 AM</option><option value="75">1:15 AM</option><option value="90">1:30 AM</option><option value="105">1:45 AM</option><option value="120">2:00 AM</option><option value="135">2:15 AM</option><option value="150">2:30 AM</option><option value="165">2:45 AM</option><option value="180">3:00 AM</option><option value="195">3:15 AM</option><option value="210">3:30 AM</option><option value="225">3:45 AM</option><option value="240">4:00 AM</option><option value="255">4:15 AM</option><option value="270">4:30 AM</option><option value="285">4:45 AM</option><option value="300">5:00 AM</option><option value="315">5:15 AM</option><option value="330">5:30 AM</option><option value="345">5:45 AM</option><option value="360">6:00 AM</option><option value="375">6:15 AM</option><option value="390">6:30 AM</option><option value="405">6:45 AM</option><option value="420">7:00 AM</option><option value="435">7:15 AM</option><option value="450">7:30 AM</option><option value="465">7:45 AM</option><option value="480">8:00 AM</option><option value="495">8:15 AM</option><option value="510">8:30 AM</option><option value="525">8:45 AM</option><option value="540">9:00 AM</option><option value="555">9:15 AM</option><option value="570">9:30 AM</option><option value="585">9:45 AM</option><option value="600">10:00 AM</option><option value="615">10:15 AM</option><option value="630">10:30 AM</option><option value="645">10:45 AM</option><option value="660">11:00 AM</option><option value="675">11:15 AM</option><option value="690">11:30 AM</option><option value="705">11:45 AM</option><option value="720">12:00 PM</option><option value="735">12:15 PM</option><option value="750">12:30 PM</option><option value="765">12:45 PM</option><option value="780">1:00 PM</option><option value="795">1:15 PM</option><option value="810">1:30 PM</option><option value="825">1:45 PM</option><option value="840">2:00 PM</option><option value="855">2:15 PM</option><option value="870">2:30 PM</option><option value="885">2:45 PM</option><option value="900">3:00 PM</option><option value="915">3:15 PM</option><option value="930">3:30 PM</option><option value="945">3:45 PM</option><option value="960">4:00 PM</option><option value="975">4:15 PM</option><option value="990">4:30 PM</option><option value="1005">4:45 PM</option><option value="1020">5:00 PM</option><option value="1035">5:15 PM</option><option value="1050">5:30 PM</option><option value="1065">5:45 PM</option><option value="1080">6:00 PM</option><option value="1095">6:15 PM</option><option value="1110">6:30 PM</option><option value="1125">6:45 PM</option><option value="1140">7:00 PM</option><option value="1155">7:15 PM</option><option value="1170">7:30 PM</option><option value="1185">7:45 PM</option><option value="1200">8:00 PM</option><option value="1215">8:15 PM</option><option value="1230">8:30 PM</option><option value="1245">8:45 PM</option><option value="1260">9:00 PM</option><option value="1275">9:15 PM</option><option value="1290">9:30 PM</option><option value="1305">9:45 PM</option><option value="1320">10:00 PM</option><option value="1335">10:15 PM</option><option value="1350">10:30 PM</option><option value="1365">10:45 PM</option><option value="1380">11:00 PM</option><option value="1395">11:15 PM</option><option value="1410">11:30 PM</option><option value="1425">11:45 PM</option></select>
       </div>
       <input type="text" id="durOut" readonly tabindex="-1" placeholder="Duration (calculated automatically)" />
       <input type="hidden" name="perf_time" />
@@ -102,8 +95,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795648904"></script>
-  <script src="assets/common.js?v=1795648904"></script>
+  <script src="assets/config.js?v=1795649192"></script>
+  <script src="assets/common.js?v=1795649192"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -178,10 +171,9 @@
 
     // ----- horaires AM/PM -----
     const readTime = (k) => {
-      const w = document.querySelector(`[data-time="${k}"]`);
-      const h = w.querySelector("[data-h]").value, m = w.querySelector("[data-m]").value, ap = w.querySelector("[data-ap]").value;
-      if (!h) return null;
-      return { label: `${h}:${m} ${ap}`, min: ((+h % 12) + (ap === "PM" ? 12 : 0)) * 60 + +m };
+      const sel = document.querySelector(`select[data-time="${k}"]`);
+      if (!sel.value) return null;
+      return { label: sel.selectedOptions[0].text, min: +sel.value };
     };
     const duration = () => {
       const a = readTime("start"), b = readTime("end");
@@ -190,7 +182,7 @@
       return d;
     };
     const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
-    document.querySelectorAll(".time3 select").forEach(s => s.addEventListener("change", () => {
+    document.querySelectorAll("select[data-time]").forEach(s => s.addEventListener("change", () => {
       const d = duration();
       document.getElementById("durOut").value = d ? "Duration: " + fmtDur(d) : "";
     }));
