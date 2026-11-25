@@ -84,3 +84,22 @@
 // Lien vers le formulaire de booking avec l'artiste pré-rempli
 window.Floriqa.bookingUrl = (name) => new URL(`affair.html?artist=${encodeURIComponent(name)}`, new URL(window.Floriqa.BASE || "./", location.href)).href;
 window.Floriqa.copyText = async (t) => { try { await navigator.clipboard.writeText(t); window.Floriqa.toast("Link copied."); } catch { prompt("Copy this link:", t); } };
+
+// Fenêtre de confirmation (verre noir) — renvoie true / false
+window.Floriqa.confirmBox = ({ title, text, ok = "Confirm", cancel = "Cancel" }, preview) => new Promise((resolve) => {
+  const esc = window.Floriqa.esc;
+  const wrap = document.createElement("div");
+  wrap.className = "confirm-overlay";
+  wrap.innerHTML = `<div class="card confirm-box" role="dialog" aria-modal="true">
+    <h3>${title}</h3><p style="margin:.7rem 0">${text}</p>
+    ${preview ? `<div class="confirm-preview">${esc(preview)}</div>` : ""}
+    <div class="toolbar" style="justify-content:flex-end;margin-top:1rem"><button class="btn" data-no>${esc(cancel)}</button><button class="btn primary" data-yes>${esc(ok)}</button></div></div>`;
+  const done = (v) => { wrap.remove(); document.removeEventListener("keydown", key); resolve(v); };
+  const key = (e) => { if (e.key === "Escape") done(false); };
+  wrap.querySelector("[data-no]").onclick = () => done(false);
+  wrap.querySelector("[data-yes]").onclick = () => done(true);
+  wrap.onclick = (e) => { if (e.target === wrap) done(false); };
+  document.addEventListener("keydown", key);
+  document.body.appendChild(wrap);
+  wrap.querySelector("[data-yes]").focus();
+});

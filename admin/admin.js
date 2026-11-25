@@ -130,16 +130,15 @@ async function showBooking(id) {
         <div class="body">${esc(m.body)}</div>
         ${m.email_status === "failed" ? `<div class="muted" style="color:#ffb3ba">${esc(m.email_error || "")}</div>` : ""}
       </div>`).join("")}
-    ${nego ? `<form id="replyForm" style="margin-top:.8rem">
-      <label class="field"><span>Reply to the promoter (${esc(b.email)})</span><textarea name="body" required placeholder="Your reply…"></textarea></label>
+    <form id="msgForm" style="margin-top:.8rem">
+      <label class="field"><span>Your message</span><textarea name="body" required placeholder="Write here, then choose who receives it…"></textarea></label>
       <div class="toolbar">
-        <button class="btn primary" type="submit">Send to the promoter</button>
-        ${pkLink ? `<button class="btn" type="button" id="insertPk">Insert press-kit link</button>` : `<span class="muted">No active press-kit link for this artist</span>`}
+        ${nego ? `<button class="btn primary" type="button" data-send="promoter">Send to the promoter</button>` : ""}
+        <button class="btn" type="button" data-send="note">Internal note</button>
+        <span class="grow"></span>
+        ${nego && pkLink ? `<button class="btn small" type="button" id="insertPk">Insert press-kit link</button>` : ""}
       </div>
-    </form>` : `<p class="muted" style="margin-top:.8rem">${b.artist_id ? `Only this artist's managers answer the promoter${me.is_super ? ` (add <b>${MGMT}</b> to the artist to negotiate yourself)` : ""}.` : "Link an artist below to answer the promoter."} You can leave internal notes.</p>`}
-    <form id="noteForm" style="margin-top:.8rem">
-      <label class="field"><span>Internal note — seen by the artist, their team and managers. <b>Never by the promoter.</b></span><textarea name="body" required placeholder="Note…" style="min-height:70px"></textarea></label>
-      <button class="btn" type="submit">Add internal note</button>
+      ${nego ? "" : `<p class="muted">${b.artist_id ? `Only this artist's managers answer the promoter${me.is_super ? ` (add <b>${MGMT}</b> to the artist to negotiate yourself)` : ""}.` : "Link an artist below to answer the promoter."} You can leave internal notes.</p>`}
     </form>
     <hr class="sep">
     <div class="row2">
@@ -150,32 +149,38 @@ async function showBooking(id) {
     </div>
     <div class="toolbar"><button class="btn" id="bkSave">Save</button><span class="grow"></span>${me.is_super ? `<button class="btn danger" id="bkDel">Delete</button>` : ""}</div>`;
 
-  if (pkLink) $("#insertPk").onclick = () => {
-    const ta = $("#replyForm textarea");
+  const ta = $("#msgForm textarea");
+  if (nego && pkLink) $("#insertPk").onclick = () => {
     ta.value = (ta.value ? ta.value + "\n\n" : "") + `Press kit ${b.artist_name}: ${pkLink}`; ta.focus();
   };
-  $("#noteForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const body = e.target.body.value.trim(); if (!body) return;
+  $$("#msgForm [data-send]").forEach((btn) => btn.onclick = async () => {
+    const body = ta.value.trim();
+    if (!body) { ta.focus(); return toast("Write a message first.", "err"); }
+    const toPromoter = btn.dataset.send === "promoter";
+    const ok = await Floriqa.confirmBox(toPromoter ? {
+      title: "⚠️ Message to the promoter",
+      text: `Warning: this message will be sent by e-mail to the promoter <b>${esc(b.promoter)}</b> (${esc(b.email)}). The artist and their team will also see it in their panel.`,
+      ok: "Send to the promoter",
+    } : {
+      title: "🔒 Private internal note",
+      text: "You are sending a private message only to the artist, their team and the managers. <b>The promoter will never see it.</b>",
+      ok: "Add internal note",
+    }, body);
+    if (!ok) return;
+    $$("#msgForm [data-send]").forEach((x) => x.disabled = true);
+    btn.textContent = "Sending…";
     const { data: m, error } = await sb.from("floriqa_messages").insert({
-      booking_id: id, author_kind: "note", visibility: "internal", author: user.id, author_name: me.display_name, body,
+      booking_id: id, author_kind: toPromoter ? "manager" : "note", visibility: toPromoter ? "external" : "internal",
+      author: user.id, author_name: me.display_name, body,
     }).select().single();
-    if (error) return toast("Error: " + error.message, "err");
-    mail({ type: "message", id: m.id });
-    toast("Internal note added."); showBooking(id);
-  });
-  if (nego) $("#replyForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const body = e.target.body.value.trim(); if (!body) return;
-    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Sending…";
-    const { data: m, error } = await sb.from("floriqa_messages").insert({
-      booking_id: id, author_kind: "manager", visibility: "external", author: user.id, author_name: me.display_name, body,
-    }).select().single();
-    if (error) { btn.disabled = false; btn.textContent = "Send to the promoter"; return toast("Error: " + error.message, "err"); }
+    if (error) { toast("Error: " + error.message, "err"); return showBooking(id); }
     const r = await mail({ type: "message", id: m.id });
-    if (b.status === "new") await sb.from("floriqa_bookings").update({ status: "negotiating" }).eq("id", id);
-    toast(r?.ok ? "Reply sent to the promoter." : "Reply saved, but the e-mail failed.", r?.ok ? "ok" : "err");
-    await loadBookings(); showBooking(id);
+    if (toPromoter) {
+      if (b.status === "new") await sb.from("floriqa_bookings").update({ status: "negotiating" }).eq("id", id);
+      toast(r?.ok ? "Reply sent to the promoter." : "Reply saved, but the e-mail failed.", r?.ok ? "ok" : "err");
+      await loadBookings();
+    } else toast("Internal note added.");
+    showBooking(id);
   });
   $("#bkSave").onclick = async () => {
     const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, artist_id: $("#bkArtist").value || null }).eq("id", id);
