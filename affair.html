@@ -38,7 +38,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795650463" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795650547" />
 </head>
 <body>
   <main class="page">
@@ -58,14 +58,14 @@
 
       <h3>EVENT DETAILS</h3>
       <input type="text" name="event" placeholder="Event" required maxlength="200" />
-      <input type="text" name="venue" placeholder="Venue" required maxlength="200" />
-      <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
       <div class="row2">
         <div class="tpick"><div class="time-field" id="countryField" tabindex="0" role="button" aria-label="Country"></div>
           <input type="hidden" name="country" required /></div>
         <input type="text" name="city" placeholder="City" required maxlength="100" />
       </div>
-      <input type="url" name="social_link" placeholder="Instagram or Facebook link (optional)" maxlength="300" />
+      <input type="text" name="venue" placeholder="Venue" required maxlength="200" />
+      <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
+      <input type="url" name="social_link" placeholder="Event Instagram (optional)" maxlength="300" />
 
       <h3>PERFORMANCE</h3>
       <div id="perfList"></div>
@@ -104,8 +104,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795650463"></script>
-  <script src="assets/common.js?v=1795650463"></script>
+  <script src="assets/config.js?v=1795650547"></script>
+  <script src="assets/common.js?v=1795650547"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -297,7 +297,7 @@
       if (missing) { (missing.type === "hidden" ? missing.parentElement : missing).scrollIntoView({ block: "center" }); missing.focus(); toast("Please fill in all required fields.", "err"); return; }
       const emailEl = form.querySelector("[name=email]");
       if (!emailEl.checkValidity()) { emailEl.focus(); toast("Please enter a valid e-mail address.", "err"); return; }
-      if (!socialOk(fd.get("social_link"))) { toast("Please enter a valid Instagram or Facebook link, or leave it empty.", "err"); return; }
+      if (!socialOk(fd.get("social_link"))) { toast("Please enter a valid Instagram link for the event, or leave it empty.", "err"); return; }
 
       const t = (k) => document.getElementById("t_" + k).checked;
       const v = (k) => (fd.get(k) || "").toString().trim() || null;
