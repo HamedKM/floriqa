@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Artists panel – Floriqa</title>
+  <link rel="icon" href="../images/favicon.ico" />
+  <link rel="stylesheet" href="../assets/floriqa.css" />
+  <style>
+    .subtabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .subtabs .tab { font-size: .85rem; padding: .35rem .8rem; }
+    .note-me { border-left: 3px solid #f9e6b3; background: rgba(249,230,179,.08); }
+    .note-mgr { border-left: 3px solid #d3ecf7; }
+    .diff td { padding: .4rem .5rem; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.08); font-size: .88rem; }
+    .diff th { text-align: left; font-size: .78rem; color: var(--muted); padding: .3rem .5rem; }
+    .gal { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .gal .g { position: relative; }
+    .gal img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+    .gal button { position: absolute; top: 2px; right: 2px; }
+    .chk { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; }
+  </style>
+</head>
+<body class="app">
+  <main class="app-wrap">
+    <section id="auth" class="card auth-box hidden"></section>
+
+    <section id="app" class="hidden">
+      <div class="toolbar">
+        <h2 class="grow">Artists panel</h2>
+        <select id="artistSwitch" style="width:auto" class="hidden"></select>
+        <span class="muted" id="who"></span>
+        <a class="btn hidden" id="adminLink" href="../admin/">Admin</a>
+        <button class="btn" id="logout">Sign out</button>
+      </div>
+      <div class="tabs" id="mainTabs">
+        <button class="tab" data-tab="bookings">Bookings</button>
+        <button class="tab" data-tab="page">My artist page</button>
+        <button class="tab" data-tab="rooms">My rooms</button>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div data-pane="bookings" class="hidden">
+        <div class="subtabs" id="bkTabs"></div>
+        <div class="split">
+          <aside id="bkList"></aside>
+          <section id="bkView" class="card"><p class="muted">Select a booking.</p></section>
+        </div>
+      </div>
+
+      <!-- MY ARTIST PAGE -->
+      <div data-pane="page" class="hidden" id="pagePane"></div>
+
+      <!-- MY ROOMS -->
+      <div data-pane="rooms" class="hidden">
+        <div class="split">
+          <aside>
+            <button class="btn primary" id="newRoom" style="width:100%;justify-content:center;margin-bottom:.8rem">+ New room</button>
+            <div id="roomList"></div>
+          </aside>
+          <section id="roomView" class="card"><p class="muted">Select a room, or create one.</p></section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>window.FLQ_BASE = "../";</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/config.js"></script>
+  <script src="../assets/common.js"></script>
+  <script src="../assets/auth.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

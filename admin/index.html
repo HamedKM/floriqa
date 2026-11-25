@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,96 +7,89 @@
   <title>Admin – Floriqa</title>
   <link rel="icon" href="../images/favicon.ico" />
   <link rel="stylesheet" href="../assets/floriqa.css" />
+  <style>
+    .diff td { padding: .4rem .5rem; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.08); font-size: .88rem; }
+    .diff th { text-align: left; font-size: .78rem; color: var(--muted); padding: .3rem .5rem; }
+    .gal { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .gal img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; }
+  </style>
 </head>
 <body class="app">
   <main class="app-wrap">
-    <!-- Connexion -->
-    <section id="login" class="card auth-box hidden">
-      <h2>Admin Floriqa</h2>
-      <form id="loginForm">
-        <label class="field"><span>E-mail</span><input type="email" name="email" required autocomplete="username"></label>
-        <label class="field"><span>Mot de passe</span><input type="password" name="password" required autocomplete="current-password"></label>
-        <button class="btn primary" type="submit">Se connecter</button>
-      </form>
-      <p class="muted" style="margin-top:1rem">Pas encore de compte ? Crée-le depuis <a href="../room/">la Room</a>.</p>
-    </section>
-
+    <section id="auth" class="card auth-box hidden"></section>
     <section id="denied" class="card auth-box hidden">
-      <h2>Accès refusé</h2>
-      <p class="muted">Ce compte n'est pas administrateur de Floriqa.</p>
-      <p style="margin-top:1rem"><button class="btn" data-logout>Se déconnecter</button></p>
+      <h2>Access denied</h2>
+      <p class="muted" style="margin:.6rem 0 1rem">This account is not a Floriqa admin.</p>
+      <a class="btn" href="../panel/">Go to the Artists panel</a> <button class="btn" data-logout>Sign out</button>
     </section>
 
-    <!-- Panneau -->
     <section id="panel" class="hidden">
       <div class="toolbar">
-        <h2 class="grow">Panneau admin</h2>
+        <h2 class="grow">Floriqa admin</h2>
         <span class="muted" id="who"></span>
-        <a class="btn" href="../room/">Room</a>
-        <button class="btn" data-logout>Déconnexion</button>
+        <a class="btn" href="../panel/">Rooms</a>
+        <button class="btn" data-logout>Sign out</button>
       </div>
       <div class="tabs">
         <button class="tab active" data-tab="bookings">Bookings <span class="badge" id="nNew"></span></button>
-        <button class="tab" data-tab="artists">Artistes</button>
-        <button class="tab" data-tab="members">Membres de la Room <span class="badge" id="nReq"></span></button>
+        <button class="tab" data-tab="artists">Artists</button>
+        <button class="tab" data-tab="requests">Page requests <span class="badge" id="nReq"></span></button>
+        <button class="tab" data-tab="admins">Admins</button>
       </div>
 
-      <!-- BOOKINGS -->
       <div data-pane="bookings">
         <div class="stats" id="bkStats"></div>
         <div class="toolbar">
           <select id="bkFilter" style="max-width:220px">
-            <option value="open">À traiter (nouveaux + en cours)</option>
-            <option value="all">Toutes</option>
-            <option value="new">Nouvelles</option>
-            <option value="in_progress">En cours</option>
-            <option value="accepted">Acceptées</option>
-            <option value="declined">Refusées</option>
-            <option value="archived">Archivées</option>
+            <option value="open">To handle (new + negotiating)</option>
+            <option value="all">All</option>
+            <option value="new">New</option>
+            <option value="negotiating">In negotiation</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="unsuccessful">Unsuccessful</option>
           </select>
-          <input type="text" id="bkSearch" placeholder="Rechercher (artiste, événement, organisateur…)" class="grow" style="max-width:420px">
-          <button class="btn" id="bkRefresh">Actualiser</button>
+          <input type="text" id="bkSearch" placeholder="Search (artist, event, promoter…)" class="grow" style="max-width:420px">
+          <button class="btn" id="bkRefresh">Refresh</button>
         </div>
         <div class="split">
           <div id="bkList"></div>
-          <div id="bkDetail" class="card"><p class="muted">Sélectionne une demande à gauche.</p></div>
+          <div id="bkDetail" class="card"><p class="muted">Select a request.</p></div>
         </div>
       </div>
 
-      <!-- ARTISTES -->
       <div data-pane="artists" class="hidden">
         <div class="split">
           <div>
-            <button class="btn primary" id="arNew" style="width:100%;justify-content:center;margin-bottom:.8rem">+ Nouvel artiste</button>
+            <button class="btn primary" id="arNew" style="width:100%;justify-content:center;margin-bottom:.8rem">+ New artist</button>
             <div id="arList"></div>
           </div>
-          <div id="arDetail" class="card"><p class="muted">Sélectionne un artiste à gauche.</p></div>
+          <div id="arDetail" class="card"><p class="muted">Select an artist.</p></div>
         </div>
       </div>
 
-      <!-- MEMBRES -->
-      <div data-pane="members" class="hidden">
+      <div data-pane="requests" class="hidden">
+        <div class="toolbar"><select id="rqFilter" style="max-width:240px">
+          <option value="pending_admin">Waiting for my approval</option>
+          <option value="awaiting_artists">Waiting for artist approval</option>
+          <option value="all">All</option>
+        </select></div>
+        <div class="split"><div id="rqList"></div><div id="rqDetail" class="card"><p class="muted">Select a request.</p></div></div>
+      </div>
+
+      <div data-pane="admins" class="hidden">
         <div class="card">
-          <h3>Donner accès à la Room</h3>
-          <p class="muted" style="margin:.3rem 0 1rem">Entre l'e-mail de la personne. Envoie-lui ensuite le lien de la Room : <b id="roomLink"></b> — elle crée son compte avec <u>cet e-mail</u> et entre directement.</p>
+          <h3>Add an admin</h3>
+          <p class="muted" style="margin:.3rem 0 1rem">Managers must be admins to answer promoters. They sign in at <b id="adminUrl"></b> with this e-mail (a code is sent the first time).</p>
           <form id="invForm" class="toolbar">
-            <input type="email" name="email" required placeholder="e-mail" style="max-width:260px">
-            <input type="text" name="name" placeholder="Nom (facultatif)" style="max-width:180px">
-            <select name="role" style="width:auto"><option value="artist">Artiste</option><option value="team">Équipe</option><option value="admin">Admin</option></select>
-            <select name="artist" id="invArtist" style="width:auto" title="Fiche artiste liée"></select>
-            <button class="btn primary" type="submit">Donner accès</button>
+            <input type="email" name="email" required placeholder="e-mail" style="max-width:280px">
+            <input type="text" name="name" placeholder="Name" style="max-width:200px">
+            <button class="btn primary" type="submit">Add admin</button>
           </form>
           <div id="invList"></div>
         </div>
-        <div class="card">
-          <h3>Demandes d'accès</h3>
-          <p class="muted" style="margin:.3rem 0 1rem">Personnes qui ont créé un compte sans invitation.</p>
-          <div id="reqList"></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom:1rem">Membres</h3>
-          <div id="memList"></div>
-        </div>
+        <div class="card"><h3 style="margin-bottom:1rem">Admins</h3><div id="admList"></div></div>
       </div>
     </section>
   </main>
@@ -105,6 +98,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../assets/config.js"></script>
   <script src="../assets/common.js"></script>
+  <script src="../assets/auth.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

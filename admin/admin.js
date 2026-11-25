@@ -1,77 +1,66 @@
-// Floriqa — panneau admin
-const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail } = Floriqa;
+// Floriqa — admin panel
+const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow } = Floriqa;
 buildChrome({ video: false });
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const show = (id) => ["login", "denied", "panel"].forEach((x) => $("#" + x).classList.toggle("hidden", x !== id));
+const show = (id) => ["auth", "denied", "panel"].forEach((x) => $("#" + x).classList.toggle("hidden", x !== id));
 const MAX = 50 * 1024 * 1024;
 const PUB = "floriqa-public";
 const PK = "floriqa-presskit";
 const SITE = location.origin + location.pathname.replace(/admin\/.*$/, "");
-const STATUS = { new: "Nouvelle", in_progress: "En cours", accepted: "Acceptée", declined: "Refusée", archived: "Archivée" };
-const ROLES = { admin: "Admin", team: "Équipe", artist: "Artiste" };
-const PKCAT = { photo: "Photos HD", presentation: "Présentations / riders", video: "Vidéos", audio: "Audio", admin: "Papiers administratifs", other: "Autres" };
+const STATUS = { new: "New", negotiating: "In negotiation", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled", unsuccessful: "Unsuccessful" };
+const SCLASS = { new: "new", negotiating: "in_progress", confirmed: "accepted", completed: "archived", cancelled: "declined", unsuccessful: "declined" };
+const PKCAT = { photo: "HD photos", presentation: "Presentations / riders", video: "Videos", audio: "Audio", admin: "Administrative documents", other: "Other" };
 let me = null, user = null;
 
-// ---------- connexion ----------
-$("#loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const f = new FormData(e.target);
-  const { error } = await sb.auth.signInWithPassword({ email: f.get("email"), password: f.get("password") });
-  if (error) return toast("E-mail ou mot de passe incorrect.", "err");
-  boot();
-});
 $$("[data-logout]").forEach((b) => b.addEventListener("click", async () => { await sb.auth.signOut(); location.reload(); }));
 
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
-  if (!session || session.user.is_anonymous) return show("login");
+  if (!session || session.user.is_anonymous) { show("auth"); return authFlow($("#auth"), { title: "Floriqa · Admin", onDone: boot }); }
   user = session.user;
   await sb.rpc("floriqa_claim_invite");
   const { data: m } = await sb.from("floriqa_members").select("*").eq("user_id", user.id).maybeSingle();
   if (!m || m.role !== "admin") return show("denied");
   me = m;
   $("#who").textContent = m.display_name;
-  $("#roomLink").textContent = SITE + "room/";
+  $("#adminUrl").textContent = SITE + "admin/";
   show("panel");
   await loadArtists();
   await loadBookings();
-  loadMembers();
+  loadRequests();
+  loadAdmins();
   const wanted = new URLSearchParams(location.search).get("b");
   if (wanted) showBooking(wanted);
 }
 
-// ---------- onglets ----------
 $$(".tab").forEach((t) => t.addEventListener("click", () => {
   $$(".tab").forEach((x) => x.classList.toggle("active", x === t));
   $$("[data-pane]").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== t.dataset.tab));
 }));
 
 // =============== BOOKINGS ===============
-let bookings = [];
-let bkSel = null;
+let bookings = [], bkSel = null;
 async function loadBookings() {
   const { data, error } = await sb.from("floriqa_bookings").select("*, floriqa_messages(count)").order("created_at", { ascending: false });
-  if (error) return toast("Impossible de charger les bookings.", "err");
+  if (error) return toast("Could not load bookings.", "err");
   bookings = data;
   const c = (s) => data.filter((b) => b.status === s).length;
   $("#nNew").textContent = c("new") || "";
-  $("#bkStats").innerHTML = [["new", "Nouvelles"], ["in_progress", "En cours"], ["accepted", "Acceptées"], ["declined", "Refusées"]]
+  $("#bkStats").innerHTML = [["new", "New"], ["negotiating", "In negotiation"], ["confirmed", "Confirmed"], ["completed", "Completed"], ["unsuccessful", "Unsuccessful"]]
     .map(([k, l]) => `<div class="stat"><b>${c(k)}</b><span class="muted">${l}</span></div>`).join("");
   renderBookings();
 }
 function renderBookings() {
-  const f = $("#bkFilter").value;
-  const q = $("#bkSearch").value.trim().toLowerCase();
+  const f = $("#bkFilter").value, q = $("#bkSearch").value.trim().toLowerCase();
   const list = bookings.filter((b) =>
-    (f === "all" || (f === "open" ? ["new", "in_progress"].includes(b.status) : b.status === f)) &&
+    (f === "all" || (f === "open" ? ["new", "negotiating"].includes(b.status) : b.status === f)) &&
     (!q || [b.artist_name, b.event, b.organization, b.promoter, b.city, b.country].join(" ").toLowerCase().includes(q)));
   $("#bkList").innerHTML = list.length ? list.map((b) => `
     <div class="list-item ${b.id === bkSel ? "sel" : ""}" data-id="${b.id}">
-      <div><b>${esc(b.artist_name)}</b> · ${esc(b.event)}<div class="muted">${esc(b.city)} · ${esc(b.dates)} · ${b.floriqa_messages?.[0]?.count || 0} message(s)</div></div>
-      <span class="badge ${b.status}">${STATUS[b.status]}</span>
-    </div>`).join("") : `<p class="muted">Aucune demande.</p>`;
+      <div><b>${esc(b.artist_name)}</b> · ${esc(b.event)}<div class="muted">${esc(b.city)} · ${esc(b.dates)} · ${b.floriqa_messages?.[0]?.count || 0} msg</div></div>
+      <span class="badge ${SCLASS[b.status]}">${STATUS[b.status]}</span></div>`).join("") : `<p class="muted">No requests.</p>`;
   $$("#bkList .list-item").forEach((el) => el.addEventListener("click", () => showBooking(el.dataset.id)));
 }
 $("#bkFilter").addEventListener("change", renderBookings);
@@ -79,238 +68,232 @@ $("#bkSearch").addEventListener("input", renderBookings);
 $("#bkRefresh").addEventListener("click", async () => { await loadBookings(); if (bkSel) showBooking(bkSel); });
 
 const KIND = {
-  promoter: { label: "Promoteur", cls: "", note: "" },
-  manager: { label: "Manager", cls: "", note: "envoyé au promoteur" },
-  artist: { label: "Note interne de l'artiste", cls: "internal", note: "le promoteur ne la voit pas" },
+  promoter: ["Promoter", "", ""],
+  manager: ["Manager", "sent to the promoter", "border-left:3px solid #d3ecf7"],
+  artist: ["Internal note", "the promoter never sees it", "border-left:3px solid #f9e6b3;background:rgba(249,230,179,.08)"],
 };
-const mailState = (m) => m.author_kind === "promoter" ? "reçu par e-mail" :
-  m.email_status === "sent" ? "e-mail envoyé ✓" : m.email_status === "failed" ? `e-mail en échec` : m.email_status === "pending" ? "e-mail en attente" : "";
+const mailState = (m) => m.author_kind === "promoter" ? "received by e-mail" :
+  m.email_status === "sent" ? "e-mail sent ✓" : m.email_status === "failed" ? "e-mail failed" : m.email_status === "pending" ? "e-mail pending" : "";
 
 async function showBooking(id) {
-  bkSel = id;
-  renderBookings();
+  bkSel = id; renderBookings();
   const b = bookings.find((x) => x.id === id);
   if (!b) return;
   const artist = artists.find((a) => a.id === b.artist_id);
-  const yn = (v, d) => (v ? `Oui${d ? " — " + esc(d) : ""}` : "Non");
+  const yn = (v, d) => (v ? `Yes${d ? " — " + esc(d) : ""}` : "No");
   const rows = [
-    ["Reçue le", fmtDate(b.created_at)], ["Artiste", esc(b.artist_name)],
-    ["Manager", artist?.manager_email ? esc(artist.manager_email) : `<span style="color:#ffb3ba">aucun — à régler dans la fiche artiste</span>`],
-    ["Organisation", esc(b.organization)], ["Organisateur", esc(b.promoter)],
-    ["Téléphone", `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>`], ["E-mail", esc(b.email)],
-    ["Événement", esc(b.event)], ["Lieu", esc(b.venue)], ["Date(s)", esc(b.dates)], ["Line-up", esc(b.lineup)],
-    ["Ville / Pays", `${esc(b.city)}, ${esc(b.country)}`],
-    ["Réseau social", b.social_link ? `<a target="_blank" rel="noopener" href="${esc(/^https?:/.test(b.social_link) ? b.social_link : "https://" + b.social_link)}">${esc(b.social_link)}</a>` : "—"],
-    ["B2B", esc(b.b2b || "Non")], ["Durée", esc(b.duration)], ["Horaire", esc(b.perf_time)], ["Cachet net", `<b>${esc(b.fee)} €</b>`],
-    ["Transport", yn(b.transport, b.transport_details)], ["Hébergement", yn(b.accommodation, b.accommodation_details)], ["Hospitalité", yn(b.hospitality, b.hospitality_details)],
+    ["Received", fmtDate(b.created_at)], ["Artist", esc(b.artist_name)],
+    ["Manager", artist?.manager_email ? esc(artist.manager_email) : `<span style="color:#ffb3ba">none — set it in the artist's profile</span>`],
+    ["Organisation", esc(b.organization)], ["Promoter", esc(b.promoter)],
+    ["Phone", `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>`], ["E-mail", esc(b.email)],
+    ["Event", esc(b.event)], ["Venue", esc(b.venue)], ["Date(s)", esc(b.dates)], ["Line-up", esc(b.lineup)],
+    ["City / Country", `${esc(b.city)}, ${esc(b.country)}`],
+    ["Social", b.social_link ? `<a target="_blank" rel="noopener" href="${esc(/^https?:/.test(b.social_link) ? b.social_link : "https://" + b.social_link)}">${esc(b.social_link)}</a>` : "—"],
+    ["B2B", esc(b.b2b || "No")], ["Duration", esc(b.duration)], ["Time", esc(b.perf_time)], ["Net fee", `<b>${esc(b.fee)} €</b>`],
+    ["Transport", yn(b.transport, b.transport_details)], ["Accommodation", yn(b.accommodation, b.accommodation_details)], ["Hospitality", yn(b.hospitality, b.hospitality_details)],
   ];
-  const { data: msgs } = await sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at");
+  const [{ data: msgs }, { data: note }] = await Promise.all([
+    sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at"),
+    sb.from("floriqa_booking_notes").select("notes").eq("booking_id", id).maybeSingle(),
+  ]);
   const pk = artist?.floriqa_presskits;
   const pkLink = pk?.enabled ? `${SITE}presskit.html?k=${pk.token}` : null;
 
   $("#bkDetail").innerHTML = `
-    <div class="toolbar"><h3 class="grow">${esc(b.artist_name)} · ${esc(b.event)}</h3><span class="badge ${b.status}">${STATUS[b.status]}</span></div>
-    <details><summary class="muted" style="cursor:pointer;margin-bottom:.6rem">Détails de la demande</summary><dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></details>
+    <div class="toolbar"><h3 class="grow">${esc(b.artist_name)} · ${esc(b.event)}</h3><span class="badge ${SCLASS[b.status]}">${STATUS[b.status]}</span></div>
+    <details><summary class="muted" style="cursor:pointer;margin-bottom:.6rem">Request details</summary><dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></details>
     <hr class="sep">
     <h3 style="margin-bottom:.6rem">Conversation</h3>
-    <div class="comment"><div class="meta"><span><b>${esc(b.promoter)}</b> · Promoteur · demande de booking</span><span>${fmtDate(b.created_at)}</span></div>
-      <div class="body muted">Formulaire envoyé (voir les détails ci-dessus).</div></div>
+    <div class="comment"><div class="meta"><span><b>${esc(b.promoter)}</b> · Promoter · booking request</span><span>${fmtDate(b.created_at)}</span></div>
+      <div class="body muted">Form submitted (see details above).</div></div>
     ${(msgs || []).map((m) => `
-      <div class="comment ${KIND[m.author_kind].cls}" style="${m.author_kind === "artist" ? "border-left:3px solid #f9e6b3;background:rgba(249,230,179,.08)" : m.author_kind === "manager" ? "border-left:3px solid #d3ecf7" : ""}">
-        <div class="meta"><span><b>${esc(m.author_name || "")}</b> · ${KIND[m.author_kind].label}${KIND[m.author_kind].note ? ` <i>(${KIND[m.author_kind].note})</i>` : ""}</span>
+      <div class="comment" style="${KIND[m.author_kind][2]}">
+        <div class="meta"><span><b>${esc(m.author_name || "")}</b> · ${KIND[m.author_kind][0]}${KIND[m.author_kind][1] ? ` <i>(${KIND[m.author_kind][1]})</i>` : ""}</span>
           <span>${fmtDate(m.created_at)} · ${mailState(m)}</span></div>
         <div class="body">${esc(m.body)}</div>
         ${m.email_status === "failed" ? `<div class="muted" style="color:#ffb3ba">${esc(m.email_error || "")}</div>` : ""}
       </div>`).join("")}
     <form id="replyForm" style="margin-top:.8rem">
-      <label class="field"><span>Répondre au promoteur (${esc(b.email)})</span><textarea name="body" required placeholder="Votre réponse…"></textarea></label>
+      <label class="field"><span>Reply to the promoter (${esc(b.email)})</span><textarea name="body" required placeholder="Your reply…"></textarea></label>
       <div class="toolbar">
-        <button class="btn primary" type="submit">Envoyer au promoteur</button>
-        ${pkLink ? `<button class="btn" type="button" id="insertPk">Insérer le lien presskit</button>` : `<span class="muted">Pas de lien presskit actif pour cet artiste</span>`}
+        <button class="btn primary" type="submit">Send to the promoter</button>
+        ${pkLink ? `<button class="btn" type="button" id="insertPk">Insert press-kit link</button>` : `<span class="muted">No active press-kit link for this artist</span>`}
       </div>
     </form>
     <hr class="sep">
     <div class="row2">
-      <label class="field"><span>Statut</span>
+      <label class="field"><span>Status</span>
         <select id="bkStatus">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === b.status ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-      <label class="field"><span>Artiste lié</span>
+      <label class="field"><span>Linked artist</span>
         <select id="bkArtist"><option value="">—</option>${artists.map((a) => `<option value="${a.id}" ${a.id === b.artist_id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
     </div>
-    <label class="field"><span>Notes admin (personne d'autre ne les voit)</span><textarea id="bkNotes">${esc(b.admin_notes || "")}</textarea></label>
-    <div class="toolbar"><button class="btn" id="bkSave">Enregistrer</button><span class="grow"></span><button class="btn danger" id="bkDel">Supprimer</button></div>`;
+    <label class="field"><span>Admin notes (only admins see them)</span><textarea id="bkNotes">${esc(note?.notes || "")}</textarea></label>
+    <div class="toolbar"><button class="btn" id="bkSave">Save</button><span class="grow"></span><button class="btn danger" id="bkDel">Delete</button></div>`;
 
   if (pkLink) $("#insertPk").onclick = () => {
     const ta = $("#replyForm textarea");
-    ta.value = (ta.value ? ta.value + "\n\n" : "") + `Press kit ${b.artist_name}: ${pkLink}`;
-    ta.focus();
+    ta.value = (ta.value ? ta.value + "\n\n" : "") + `Press kit ${b.artist_name}: ${pkLink}`; ta.focus();
   };
   $("#replyForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = e.target.body.value.trim(); if (!body) return;
-    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Envoi…";
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Sending…";
     const { data: m, error } = await sb.from("floriqa_messages").insert({
       booking_id: id, author_kind: "manager", visibility: "external", author: user.id, author_name: me.display_name, body,
     }).select().single();
-    if (error) { btn.disabled = false; btn.textContent = "Envoyer au promoteur"; return toast("Erreur : " + error.message, "err"); }
+    if (error) { btn.disabled = false; btn.textContent = "Send to the promoter"; return toast("Error: " + error.message, "err"); }
     const r = await mail({ type: "message", id: m.id });
-    if (b.status === "new") await sb.from("floriqa_bookings").update({ status: "in_progress" }).eq("id", id);
-    toast(r?.ok ? "Réponse envoyée au promoteur." : "Réponse enregistrée — l'e-mail n'est pas parti (envoi pas encore activé).", r?.ok ? "ok" : "err");
+    if (b.status === "new") await sb.from("floriqa_bookings").update({ status: "negotiating" }).eq("id", id);
+    toast(r?.ok ? "Reply sent to the promoter." : "Reply saved, but the e-mail failed.", r?.ok ? "ok" : "err");
     await loadBookings(); showBooking(id);
   });
   $("#bkSave").onclick = async () => {
-    const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, admin_notes: $("#bkNotes").value || null, artist_id: $("#bkArtist").value || null }).eq("id", id);
-    if (error) return toast("Erreur d'enregistrement.", "err");
-    toast("Demande mise à jour."); await loadBookings(); showBooking(id);
+    const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, artist_id: $("#bkArtist").value || null }).eq("id", id);
+    const { error: e2 } = await sb.from("floriqa_booking_notes").upsert({ booking_id: id, notes: $("#bkNotes").value || null, updated_at: new Date().toISOString() });
+    if (error || e2) return toast("Could not save.", "err");
+    toast("Saved."); await loadBookings(); showBooking(id);
   };
   $("#bkDel").onclick = async () => {
-    if (!confirm("Supprimer définitivement cette demande et toute sa conversation ?")) return;
+    if (!confirm("Permanently delete this request and its whole conversation?")) return;
     const { error } = await sb.from("floriqa_bookings").delete().eq("id", id);
-    if (error) return toast("Erreur de suppression.", "err");
-    bkSel = null; $("#bkDetail").innerHTML = `<p class="muted">Demande supprimée.</p>`; loadBookings();
+    if (error) return toast("Could not delete.", "err");
+    bkSel = null; $("#bkDetail").innerHTML = `<p class="muted">Deleted.</p>`; loadBookings();
   };
 }
 
-// =============== ARTISTES ===============
-let artists = [];
-let arSel = null;
+// =============== ARTISTS ===============
+let artists = [], arSel = null;
 async function loadArtists() {
   const { data, error } = await sb.from("floriqa_artists")
-    .select("*, floriqa_tracks(*), floriqa_videos(*), floriqa_artist_photos(*), floriqa_presskits(*), floriqa_presskit_files(*)").order("sort").order("name");
-  if (error) return toast("Impossible de charger les artistes.", "err");
+    .select("*, floriqa_tracks(*), floriqa_videos(*), floriqa_artist_photos(*), floriqa_presskits(*), floriqa_presskit_files(*), floriqa_contacts(*)").order("sort").order("name");
+  if (error) return toast("Could not load artists.", "err");
   artists = data.map((a) => ({ ...a, floriqa_presskits: Array.isArray(a.floriqa_presskits) ? a.floriqa_presskits[0] : a.floriqa_presskits }));
   $("#arList").innerHTML = artists.map((a) => `
     <div class="list-item ${a.id === arSel ? "sel" : ""}" data-id="${a.id}">
       <div style="display:flex;gap:.7rem;align-items:center">
         ${(a.card_url || a.photo_url) ? `<img class="thumb" src="${esc(media(a.card_url || a.photo_url))}" alt="">` : `<div class="thumb"></div>`}
-        <div><b>${esc(a.name)}</b><div class="muted">${esc(a.tagline || "")}</div></div>
+        <div><b>${esc(a.name)}</b><div class="muted">${esc(a.tagline || "")}${a.floriqa_contacts?.length ? "" : " · no contact"}</div></div>
       </div>
-      ${a.published ? "" : `<span class="badge">Masqué</span>`}
+      ${a.published ? "" : `<span class="badge">Hidden</span>`}
     </div>`).join("");
   $$("#arList .list-item").forEach((el) => el.addEventListener("click", () => showArtist(el.dataset.id)));
-  const opts = `<option value="">— aucune fiche —</option>` + artists.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("");
-  if ($("#invArtist")) $("#invArtist").innerHTML = opts;
   if (arSel) showArtist(arSel);
 }
 const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const safeName = (n) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
-const tooBig = (file) => { if (file.size > MAX) { toast(`« ${file.name} » dépasse 50 Mo (limite de l'offre gratuite).`, "err"); return true; } return false; };
-
+const tooBig = (file) => { if (file.size > MAX) { toast(`"${file.name}" is larger than 50 MB.`, "err"); return true; } return false; };
 async function uploadPublic(file, slug) {
   if (tooBig(file)) return null;
   const path = `artists/${slug}/${Date.now()}-${safeName(file.name)}`;
   const { error } = await sb.storage.from(PUB).upload(path, file, { contentType: file.type || undefined });
-  if (error) { toast("Échec de l'envoi : " + error.message, "err"); return null; }
+  if (error) { toast("Upload failed: " + error.message, "err"); return null; }
   return sb.storage.from(PUB).getPublicUrl(path).data.publicUrl;
 }
 async function removePublic(url) {
   const marker = `/storage/v1/object/public/${PUB}/`;
   if (url && url.includes(marker)) await sb.storage.from(PUB).remove([decodeURIComponent(url.split(marker)[1])]);
 }
-
 $("#arNew").addEventListener("click", () => { arSel = null; $$("#arList .list-item").forEach((x) => x.classList.remove("sel")); artistForm(null); });
 
 function artistForm(a) {
   const isNew = !a;
-  a = a || { name: "", slug: "", tagline: "", bio: "", instagram: "", published: true, sort: (artists.at(-1)?.sort || 0) + 1 };
+  a = a || { name: "", slug: "", tagline: "", bio: "", published: true, sort: (artists.at(-1)?.sort || 0) + 1 };
   const by = (x, y) => x.sort - y.sort;
-  const tracks = (a.floriqa_tracks || []).sort(by);
-  const vids = (a.floriqa_videos || []).sort(by);
-  const photos = (a.floriqa_artist_photos || []).sort(by);
+  const tracks = (a.floriqa_tracks || []).sort(by), vids = (a.floriqa_videos || []).sort(by), photos = (a.floriqa_artist_photos || []).sort(by);
+  const contacts = (a.floriqa_contacts || []).sort((x, y) => x.kind.localeCompare(y.kind) || x.email.localeCompare(y.email));
   const pk = a.floriqa_presskits;
   const pkFiles = (a.floriqa_presskit_files || []).sort((x, y) => x.category.localeCompare(y.category) || x.sort - y.sort);
   const pkLink = pk ? `${SITE}presskit.html?k=${pk.token}` : "";
   const f = (k, label, type = "text", ph = "") => `<label class="field"><span>${label}</span><input type="${type}" name="${k}" value="${esc(a[k] || "")}" placeholder="${ph}"></label>`;
+  const contactRow = (c) => `<div class="file-row" data-cid="${c.id}"><div><b>${esc(c.name || c.email)}</b> <span class="muted">${esc(c.email)}</span></div>
+    <div class="actions"><button class="btn small danger" data-cdel>Remove</button></div></div>`;
 
   $("#arDetail").innerHTML = `
-    <div class="toolbar"><h3 class="grow">${isNew ? "Nouvel artiste" : esc(a.name)}</h3>
-      ${isNew ? "" : `<a class="btn small" target="_blank" href="../artist.html?a=${esc(a.slug)}">Voir la page publique ↗</a>`}</div>
+    <div class="toolbar"><h3 class="grow">${isNew ? "New artist" : esc(a.name)}</h3>
+      ${isNew ? "" : `<a class="btn small" target="_blank" href="../artist.html?a=${esc(a.slug)}">View public page ↗</a>`}</div>
     <form id="arForm">
       <div class="row2">
-        <label class="field"><span>Nom</span><input type="text" name="name" required value="${esc(a.name)}"></label>
-        <label class="field"><span>Adresse de la page (ex. kolok)</span><input type="text" name="slug" required pattern="[a-z0-9-]+" value="${esc(a.slug)}"></label>
+        <label class="field"><span>Name (solo, duo, trio, band…)</span><input type="text" name="name" required value="${esc(a.name)}"></label>
+        <label class="field"><span>Page address (e.g. kolok)</span><input type="text" name="slug" required pattern="[a-z0-9-]+" value="${esc(a.slug)}"></label>
       </div>
-      <div class="row2">
-        ${f("tagline", "Sous-titre (ex. DJ & Producer)")}
-        ${f("manager_email", "E-mail du manager (reçoit les bookings)", "email", "manager@…")}
-      </div>
-      <label class="field"><span>Biographie</span><textarea name="bio" style="min-height:140px">${esc(a.bio || "")}</textarea></label>
-      <div class="row2">${f("instagram", "Instagram", "url", "https://instagram.com/…")}${f("spotify", "Spotify", "url", "https://open.spotify.com/…")}</div>
-      <div class="row2">${f("soundcloud", "SoundCloud", "url", "https://soundcloud.com/…")}${f("youtube", "YouTube", "url", "https://youtube.com/…")}</div>
-      <div class="row2">
-        ${f("website", "Site web", "url")}
+      <div class="row2">${f("tagline", "Tagline (e.g. DJ & Producer)")}${f("manager_email", "Manager e-mail (receives bookings)", "email", "manager@…")}</div>
+      <label class="field"><span>Biography</span><textarea name="bio" style="min-height:140px">${esc(a.bio || "")}</textarea></label>
+      <div class="row2">${f("instagram", "Instagram", "url")}${f("spotify", "Spotify", "url")}</div>
+      <div class="row2">${f("soundcloud", "SoundCloud", "url")}${f("youtube", "YouTube", "url")}</div>
+      <div class="row2">${f("website", "Website", "url")}
         <div class="row2">
-          <label class="field"><span>Ordre</span><input type="number" name="sort" value="${a.sort}"></label>
-          <label class="field"><span>Visible sur le site</span><select name="published"><option value="1" ${a.published ? "selected" : ""}>Oui</option><option value="0" ${a.published ? "" : "selected"}>Non (masqué)</option></select></label>
-        </div>
-      </div>
-      <div class="toolbar"><button class="btn primary" type="submit">${isNew ? "Créer l'artiste" : "Enregistrer"}</button>
-        <span class="grow"></span>${isNew ? "" : `<button class="btn danger" type="button" id="arDel">Supprimer l'artiste</button>`}</div>
+          <label class="field"><span>Order</span><input type="number" name="sort" value="${a.sort}"></label>
+          <label class="field"><span>Visible on the site</span><select name="published"><option value="1" ${a.published ? "selected" : ""}>Yes</option><option value="0" ${a.published ? "" : "selected"}>No (hidden)</option></select></label>
+        </div></div>
+      <div class="toolbar"><button class="btn primary" type="submit">${isNew ? "Create artist" : "Save"}</button>
+        <span class="grow"></span>${isNew ? "" : `<button class="btn danger" type="button" id="arDel">Delete artist</button>`}</div>
     </form>
     ${isNew ? "" : `
     <hr class="sep">
+    <h3>Contacts — Artists panel access</h3>
+    <p class="muted" style="margin:.3rem 0 .8rem">They sign in at <b>${esc(SITE)}panel/</b> with this e-mail. <b>Artists</b> (the members of the project) see bookings, the artist page and rooms. <b>Team</b> sees bookings and the artist page only — never rooms.</p>
+    <h4 style="margin-bottom:.4rem">Artists / members</h4>
+    <div>${contacts.filter((c) => c.kind === "member").map(contactRow).join("") || `<p class="muted">No artist e-mail yet.</p>`}</div>
+    <h4 style="margin:.8rem 0 .4rem">Team</h4>
+    <div>${contacts.filter((c) => c.kind === "team").map(contactRow).join("") || `<p class="muted">No team member.</p>`}</div>
+    <form id="ctForm" class="toolbar" style="margin-top:.6rem">
+      <input type="email" name="email" required placeholder="e-mail" style="max-width:240px">
+      <input type="text" name="name" placeholder="Name" style="max-width:170px">
+      <select name="kind" style="width:auto"><option value="member">Artist / member</option><option value="team">Team</option></select>
+      <button class="btn" type="submit">Add contact</button>
+    </form>
+    <p class="muted">Team page changes need artist approval: <b>${{ none: "none", one: "one artist", all: "all artists" }[a.edit_approval]}</b> (set by the artists).</p>
+
+    <hr class="sep">
     <h3>Photos</h3>
     <div class="row2" style="margin-top:.6rem">
-      <div class="field"><span>Photo carrée (liste des artistes)</span>
-        ${a.card_url ? `<img class="thumb" style="width:90px;height:90px;margin-bottom:.4rem" src="${esc(media(a.card_url))}">` : ""}
-        <input type="file" accept="image/*" data-up="card_url"></div>
-      <div class="field"><span>Photo principale de la page</span>
-        ${a.photo_url ? `<img class="thumb" style="width:90px;height:90px;margin-bottom:.4rem" src="${esc(media(a.photo_url))}">` : ""}
-        <input type="file" accept="image/*" data-up="photo_url"></div>
+      <div class="field"><span>Square photo (artists list)</span>${a.card_url ? `<img class="thumb" style="width:90px;height:90px;margin-bottom:.4rem" src="${esc(media(a.card_url))}">` : ""}<input type="file" accept="image/*" data-up="card_url"></div>
+      <div class="field"><span>Main page photo</span>${a.photo_url ? `<img class="thumb" style="width:90px;height:90px;margin-bottom:.4rem" src="${esc(media(a.photo_url))}">` : ""}<input type="file" accept="image/*" data-up="photo_url"></div>
     </div>
-    <div class="field"><span>Galerie (page publique)</span>
+    <div class="field"><span>Gallery</span>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">${photos.map((p) => `
         <div style="position:relative"><img class="thumb" style="width:90px;height:90px" src="${esc(media(p.url))}">
-          <button class="btn small danger" data-phdel="${p.id}" style="position:absolute;top:2px;right:2px;padding:.1rem .4rem">×</button></div>`).join("") || `<span class="muted">Aucune photo.</span>`}</div>
+          <button class="btn small danger" data-phdel="${p.id}" style="position:absolute;top:2px;right:2px;padding:.1rem .4rem">×</button></div>`).join("") || `<span class="muted">No photos.</span>`}</div>
       <input type="file" accept="image/*" multiple id="galFile"></div>
 
     <hr class="sep">
-    <h3>Morceaux</h3>
+    <h3>Tracks</h3>
     <div id="trList" style="margin:.8rem 0">${tracks.map((t) => `
-      <div class="file-row" data-id="${t.id}">
-        <input type="text" value="${esc(t.title)}" data-title>
-        <div class="actions"><button class="btn small" data-save>Renommer</button><button class="btn small danger" data-del>Retirer</button></div>
-        <audio controls preload="none" src="${esc(media(t.audio_url))}"></audio>
-      </div>`).join("") || `<p class="muted">Aucun morceau.</p>`}</div>
-    <div class="toolbar"><input type="text" id="trTitle" placeholder="Titre du morceau" class="grow" style="max-width:300px"><input type="file" id="trFile" accept="audio/*"><button class="btn" id="trAdd">Ajouter le morceau</button></div>
+      <div class="file-row" data-id="${t.id}"><input type="text" value="${esc(t.title)}" data-title>
+        <div class="actions"><button class="btn small" data-save>Rename</button><button class="btn small danger" data-del>Remove</button></div>
+        <audio controls preload="none" src="${esc(media(t.audio_url))}"></audio></div>`).join("") || `<p class="muted">No tracks.</p>`}</div>
+    <div class="toolbar"><input type="text" id="trTitle" placeholder="Track title" class="grow" style="max-width:300px"><input type="file" id="trFile" accept="audio/*"><button class="btn" id="trAdd">Add track</button></div>
 
     <hr class="sep">
-    <h3>Vidéos</h3>
+    <h3>Videos</h3>
     <div id="viList" style="margin:.8rem 0">${vids.map((v) => `
-      <div class="file-row" data-id="${v.id}"><div>${esc(v.title || "Vidéo")} <span class="muted">· ${v.vertical ? "verticale" : "horizontale"}</span></div>
-      <div class="actions"><a class="btn small" target="_blank" href="${esc(media(v.video_url))}">Voir</a><button class="btn small danger" data-del>Retirer</button></div></div>`).join("") || `<p class="muted">Aucune vidéo.</p>`}</div>
-    <div class="toolbar"><input type="text" id="viTitle" placeholder="Titre" style="max-width:200px">
-      <select id="viVert" style="max-width:160px"><option value="0">Horizontale</option><option value="1">Verticale</option></select>
-      <input type="file" id="viFile" accept="video/mp4,video/*"><button class="btn" id="viAdd">Ajouter la vidéo</button></div>
-    <p class="muted">Limite : 50 Mo par fichier.</p>
+      <div class="file-row" data-id="${v.id}"><div>${esc(v.title || "Video")} <span class="muted">· ${v.vertical ? "vertical" : "horizontal"}</span></div>
+      <div class="actions"><a class="btn small" target="_blank" href="${esc(media(v.video_url))}">View</a><button class="btn small danger" data-del>Remove</button></div></div>`).join("") || `<p class="muted">No videos.</p>`}</div>
+    <div class="toolbar"><input type="text" id="viTitle" placeholder="Title" style="max-width:200px">
+      <select id="viVert" style="max-width:160px"><option value="0">Horizontal</option><option value="1">Vertical</option></select>
+      <input type="file" id="viFile" accept="video/mp4,video/*"><button class="btn" id="viAdd">Add video</button></div>
+    <p class="muted">50 MB max per file.</p>
 
     <hr class="sep">
-    <h3>🔒 Lien privé (presskit pour les promoteurs)</h3>
-    <p class="muted" style="margin:.3rem 0 .8rem">Page secrète : seules les personnes qui ont le lien y accèdent. Elle reprend la bio, les photos, la musique et les vidéos, plus les fichiers privés ci-dessous.</p>
+    <h3>🔒 Private link (press kit for promoters)</h3>
+    <p class="muted" style="margin:.3rem 0 .8rem">Secret page: only people with the link can open it.</p>
     ${pk ? `
-      <div class="toolbar">
-        <input type="text" readonly value="${esc(pkLink)}" id="pkLink" class="grow" style="max-width:520px">
-        <button class="btn small" id="pkCopy">Copier</button>
-        <a class="btn small" target="_blank" href="${esc(pkLink)}">Ouvrir ↗</a>
-      </div>
-      <div class="toolbar">
-        <span class="badge ${pk.enabled ? "accepted" : "declined"}">${pk.enabled ? "Actif" : "Désactivé"}</span>
-        <button class="btn small" id="pkToggle">${pk.enabled ? "Désactiver le lien" : "Réactiver le lien"}</button>
-        <button class="btn small danger" id="pkRegen">Changer le lien (l'ancien ne marchera plus)</button>
-      </div>
-      <label class="field"><span>Message en haut de la page privée (facultatif)</span><textarea id="pkMsg" style="min-height:60px">${esc(pk.message || "")}</textarea></label>
-      <button class="btn small" id="pkMsgSave">Enregistrer le message</button>
-      <h4 style="margin:1.2rem 0 .6rem">Fichiers privés</h4>
+      <div class="toolbar"><input type="text" readonly value="${esc(pkLink)}" id="pkLink" class="grow" style="max-width:520px">
+        <button class="btn small" id="pkCopy">Copy</button><a class="btn small" target="_blank" href="${esc(pkLink)}">Open ↗</a></div>
+      <div class="toolbar"><span class="badge ${pk.enabled ? "accepted" : "declined"}">${pk.enabled ? "Active" : "Disabled"}</span>
+        <button class="btn small" id="pkToggle">${pk.enabled ? "Disable link" : "Enable link"}</button>
+        <button class="btn small danger" id="pkRegen">New link (old one stops working)</button></div>
+      <label class="field"><span>Message at the top of the private page (optional)</span><textarea id="pkMsg" style="min-height:60px">${esc(pk.message || "")}</textarea></label>
+      <button class="btn small" id="pkMsgSave">Save message</button>
+      <h4 style="margin:1.2rem 0 .6rem">Private files</h4>
       <div id="pkList">${pkFiles.map((x) => `
         <div class="file-row" data-id="${x.id}"><div><b>${esc(x.name)}</b> <span class="muted">· ${PKCAT[x.category]} · ${fmtSize(x.size_bytes)}</span></div>
-          <div class="actions"><button class="btn small" data-dl>Télécharger</button><button class="btn small danger" data-del>×</button></div></div>`).join("") || `<p class="muted">Aucun fichier privé.</p>`}</div>
-      <div class="toolbar" style="margin-top:.6rem">
-        <select id="pkCat" style="width:auto">${Object.entries(PKCAT).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
-        <input type="file" id="pkFile" multiple><button class="btn" id="pkAdd">Ajouter</button>
-      </div>
+          <div class="actions"><button class="btn small" data-dl>Download</button><button class="btn small danger" data-del>×</button></div></div>`).join("") || `<p class="muted">No private files.</p>`}</div>
+      <div class="toolbar" style="margin-top:.6rem"><select id="pkCat" style="width:auto">${Object.entries(PKCAT).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
+        <input type="file" id="pkFile" multiple><button class="btn" id="pkAdd">Add</button></div>
       <div class="progress hidden" id="pkProg"><i></i></div>`
-    : `<button class="btn primary" id="pkCreate">Créer le lien privé</button>`}
-    `}
-  `;
+    : `<button class="btn primary" id="pkCreate">Create private link</button>`}
+    `}`;
 
   const form = $("#arForm");
   form.name.addEventListener("input", () => { if (isNew) form.slug.value = slugify(form.name.value); });
@@ -323,134 +306,123 @@ function artistForm(a) {
       sort: +fd.get("sort") || 0, published: fd.get("published") === "1" };
     const q = isNew ? sb.from("floriqa_artists").insert(row).select().single() : sb.from("floriqa_artists").update(row).eq("id", a.id).select().single();
     const { data, error } = await q;
-    if (error) return toast(error.code === "23505" ? "Cette adresse de page existe déjà." : "Erreur : " + error.message, "err");
-    toast(isNew ? "Artiste créé. Ajoute maintenant ses photos, morceaux et son lien privé." : "Artiste enregistré.");
+    if (error) return toast(error.code === "23505" ? "This page address already exists." : "Error: " + error.message, "err");
+    toast(isNew ? "Artist created. Now add contacts, photos and tracks." : "Saved.");
     arSel = data.id; loadArtists();
   });
   if (isNew) return;
 
+  $("#ctForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const { error } = await sb.from("floriqa_contacts").insert({ artist_id: a.id, email: fd.get("email").trim().toLowerCase(), name: fd.get("name").trim() || null, kind: fd.get("kind") });
+    if (error) return toast(error.code === "23505" ? "This e-mail is already on this artist." : "Error: " + error.message, "err");
+    toast("Contact added."); loadArtists();
+  };
+  $$("[data-cid]").forEach((row) => $("[data-cdel]", row).onclick = async () => {
+    if (!confirm("Remove this contact? They will lose access to this artist in the Artists panel.")) return;
+    await sb.from("floriqa_contacts").delete().eq("id", row.dataset.cid); loadArtists();
+  });
   $$("[data-up]").forEach((inp) => inp.addEventListener("change", async () => {
     const file = inp.files[0]; if (!file) return;
-    toast("Envoi de la photo…");
+    toast("Uploading…");
     const url = await uploadPublic(file, a.slug); if (!url) return;
     const old = a[inp.dataset.up];
     const { error } = await sb.from("floriqa_artists").update({ [inp.dataset.up]: url }).eq("id", a.id);
-    if (error) return toast("Erreur : " + error.message, "err");
-    await removePublic(old); toast("Photo mise à jour."); loadArtists();
+    if (error) return toast("Error: " + error.message, "err");
+    await removePublic(old); toast("Photo updated."); loadArtists();
   }));
   $("#galFile").addEventListener("change", async (e) => {
     const files = [...e.target.files]; if (!files.length) return;
-    toast(`Envoi de ${files.length} photo(s)…`);
-    let n = (photos.at(-1)?.sort || 0);
-    for (const file of files) {
-      const url = await uploadPublic(file, a.slug); if (!url) continue;
-      await sb.from("floriqa_artist_photos").insert({ artist_id: a.id, url, sort: ++n });
-    }
-    toast("Galerie mise à jour."); loadArtists();
+    toast(`Uploading ${files.length} photo(s)…`);
+    let n = photos.at(-1)?.sort || 0;
+    for (const file of files) { const url = await uploadPublic(file, a.slug); if (url) await sb.from("floriqa_artist_photos").insert({ artist_id: a.id, url, sort: ++n }); }
+    toast("Gallery updated."); loadArtists();
   });
   $$("[data-phdel]").forEach((b) => b.onclick = async () => {
     const p = photos.find((x) => x.id === b.dataset.phdel);
     await sb.from("floriqa_artist_photos").delete().eq("id", p.id); await removePublic(p.url); loadArtists();
   });
   $("#arDel").onclick = async () => {
-    if (!confirm(`Supprimer ${a.name}, ses morceaux, vidéos, photos et fichiers privés ? Cette action est définitive.`)) return;
+    if (!confirm(`Delete ${a.name} with all tracks, videos, photos, contacts and private files? This cannot be undone.`)) return;
     const paths = pkFiles.map((x) => x.storage_path);
     const { error } = await sb.from("floriqa_artists").delete().eq("id", a.id);
-    if (error) return toast("Erreur : " + error.message, "err");
+    if (error) return toast("Error: " + error.message, "err");
     for (const u of [a.card_url, a.photo_url, ...tracks.map((t) => t.audio_url), ...vids.map((v) => v.video_url), ...photos.map((p) => p.url)]) await removePublic(u);
     if (paths.length) await sb.storage.from(PK).remove(paths);
-    arSel = null; $("#arDetail").innerHTML = `<p class="muted">Artiste supprimé.</p>`; loadArtists();
+    arSel = null; $("#arDetail").innerHTML = `<p class="muted">Artist deleted.</p>`; loadArtists();
   };
   $$("#trList .file-row").forEach((row) => {
     const t = tracks.find((x) => x.id === row.dataset.id);
     $("[data-save]", row).onclick = async () => {
       const { error } = await sb.from("floriqa_tracks").update({ title: $("[data-title]", row).value }).eq("id", t.id);
-      toast(error ? "Erreur." : "Titre enregistré.", error ? "err" : "ok");
+      toast(error ? "Error." : "Saved.", error ? "err" : "ok");
     };
     $("[data-del]", row).onclick = async () => {
-      if (!confirm(`Retirer « ${t.title} » ?`)) return;
+      if (!confirm(`Remove "${t.title}"?`)) return;
       await sb.from("floriqa_tracks").delete().eq("id", t.id); await removePublic(t.audio_url); loadArtists();
     };
   });
   $$("#viList .file-row").forEach((row) => {
     const v = vids.find((x) => x.id === row.dataset.id);
     $("[data-del]", row).onclick = async () => {
-      if (!confirm("Retirer cette vidéo ?")) return;
+      if (!confirm("Remove this video?")) return;
       await sb.from("floriqa_videos").delete().eq("id", v.id); await removePublic(v.video_url); loadArtists();
     };
   });
   $("#trAdd").onclick = async (e) => {
     const file = $("#trFile").files[0]; const title = $("#trTitle").value.trim() || file?.name.replace(/\.[^.]+$/, "");
-    if (!file) return toast("Choisis un fichier audio.", "err");
-    e.target.disabled = true; e.target.textContent = "Envoi…";
+    if (!file) return toast("Choose an audio file.", "err");
+    e.target.disabled = true; e.target.textContent = "Uploading…";
     const url = await uploadPublic(file, a.slug);
-    if (url) {
-      const { error } = await sb.from("floriqa_tracks").insert({ artist_id: a.id, title, audio_url: url, sort: (tracks.at(-1)?.sort || 0) + 1 });
-      toast(error ? "Erreur : " + error.message : "Morceau ajouté.", error ? "err" : "ok");
-    }
+    if (url) { const { error } = await sb.from("floriqa_tracks").insert({ artist_id: a.id, title, audio_url: url, sort: (tracks.at(-1)?.sort || 0) + 1 }); toast(error ? "Error: " + error.message : "Track added.", error ? "err" : "ok"); }
     loadArtists();
   };
   $("#viAdd").onclick = async (e) => {
     const file = $("#viFile").files[0];
-    if (!file) return toast("Choisis un fichier vidéo.", "err");
-    e.target.disabled = true; e.target.textContent = "Envoi…";
+    if (!file) return toast("Choose a video file.", "err");
+    e.target.disabled = true; e.target.textContent = "Uploading…";
     const url = await uploadPublic(file, a.slug);
-    if (url) {
-      const { error } = await sb.from("floriqa_videos").insert({ artist_id: a.id, title: $("#viTitle").value || null, video_url: url, vertical: $("#viVert").value === "1", sort: (vids.at(-1)?.sort || 0) + 1 });
-      toast(error ? "Erreur : " + error.message : "Vidéo ajoutée.", error ? "err" : "ok");
-    }
+    if (url) { const { error } = await sb.from("floriqa_videos").insert({ artist_id: a.id, title: $("#viTitle").value || null, video_url: url, vertical: $("#viVert").value === "1", sort: (vids.at(-1)?.sort || 0) + 1 }); toast(error ? "Error: " + error.message : "Video added.", error ? "err" : "ok"); }
     loadArtists();
   };
 
-  // ----- lien privé -----
   const newToken = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
   if (!pk) {
     $("#pkCreate").onclick = async () => {
       const { error } = await sb.from("floriqa_presskits").insert({ artist_id: a.id, token: newToken() });
-      toast(error ? "Erreur : " + error.message : "Lien privé créé.", error ? "err" : "ok"); loadArtists();
+      toast(error ? "Error: " + error.message : "Private link created.", error ? "err" : "ok"); loadArtists();
     };
     return;
   }
-  $("#pkCopy").onclick = async () => { await navigator.clipboard.writeText(pkLink).catch(() => $("#pkLink").select()); toast("Lien copié."); };
-  $("#pkToggle").onclick = async () => {
-    await sb.from("floriqa_presskits").update({ enabled: !pk.enabled, updated_at: new Date().toISOString() }).eq("artist_id", a.id);
-    toast(pk.enabled ? "Lien désactivé." : "Lien réactivé."); loadArtists();
-  };
+  $("#pkCopy").onclick = async () => { await navigator.clipboard.writeText(pkLink).catch(() => $("#pkLink").select()); toast("Link copied."); };
+  $("#pkToggle").onclick = async () => { await sb.from("floriqa_presskits").update({ enabled: !pk.enabled, updated_at: new Date().toISOString() }).eq("artist_id", a.id); loadArtists(); };
   $("#pkRegen").onclick = async () => {
-    if (!confirm("Créer un nouveau lien ? L'ancien lien ne marchera plus pour personne.")) return;
-    await sb.from("floriqa_presskits").update({ token: newToken(), updated_at: new Date().toISOString() }).eq("artist_id", a.id);
-    toast("Nouveau lien créé."); loadArtists();
+    if (!confirm("Create a new link? The old link will stop working for everyone.")) return;
+    await sb.from("floriqa_presskits").update({ token: newToken(), updated_at: new Date().toISOString() }).eq("artist_id", a.id); toast("New link created."); loadArtists();
   };
-  $("#pkMsgSave").onclick = async () => {
-    await sb.from("floriqa_presskits").update({ message: $("#pkMsg").value.trim() || null }).eq("artist_id", a.id);
-    toast("Message enregistré.");
-  };
+  $("#pkMsgSave").onclick = async () => { await sb.from("floriqa_presskits").update({ message: $("#pkMsg").value.trim() || null }).eq("artist_id", a.id); toast("Message saved."); };
   $$("#pkList .file-row").forEach((row) => {
     const x = pkFiles.find((y) => y.id === row.dataset.id);
-    $("[data-dl]", row).onclick = async () => {
-      const { data } = await sb.storage.from(PK).createSignedUrl(x.storage_path, 600, { download: x.name });
-      if (data) location.href = data.signedUrl;
-    };
+    $("[data-dl]", row).onclick = async () => { const { data } = await sb.storage.from(PK).createSignedUrl(x.storage_path, 600, { download: x.name }); if (data) location.href = data.signedUrl; };
     $("[data-del]", row).onclick = async () => {
-      if (!confirm(`Retirer « ${x.name} » ?`)) return;
-      await sb.storage.from(PK).remove([x.storage_path]);
-      await sb.from("floriqa_presskit_files").delete().eq("id", x.id); loadArtists();
+      if (!confirm(`Remove "${x.name}"?`)) return;
+      await sb.storage.from(PK).remove([x.storage_path]); await sb.from("floriqa_presskit_files").delete().eq("id", x.id); loadArtists();
     };
   });
   $("#pkAdd").onclick = async () => {
     const files = [...$("#pkFile").files].filter((x) => !tooBig(x));
-    if (!files.length) return toast("Choisis un ou plusieurs fichiers.", "err");
-    const cat = $("#pkCat").value, bar = $("#pkProg i");
-    $("#pkProg").classList.remove("hidden");
+    if (!files.length) return toast("Choose one or more files.", "err");
+    const cat = $("#pkCat").value, bar = $("#pkProg i"); $("#pkProg").classList.remove("hidden");
     let done = 0;
     for (const file of files) {
       bar.style.width = Math.round((done / files.length) * 100) + 5 + "%";
       const path = `${a.id}/${crypto.randomUUID()}-${safeName(file.name)}`;
       const { error } = await sb.storage.from(PK).upload(path, file, { contentType: file.type || "application/octet-stream" });
-      if (error) { toast(`Échec pour « ${file.name} » : ${error.message}`, "err"); continue; }
+      if (error) { toast(`Upload failed for "${file.name}": ${error.message}`, "err"); continue; }
       await sb.from("floriqa_presskit_files").insert({ artist_id: a.id, category: cat, name: file.name, storage_path: path, size_bytes: file.size, sort: ++done });
     }
-    toast(`${done} fichier(s) ajouté(s).`); loadArtists();
+    toast(`${done} file(s) added.`); loadArtists();
   };
 }
 function showArtist(id) {
@@ -459,81 +431,81 @@ function showArtist(id) {
   artistForm(artists.find((a) => a.id === id));
 }
 
-// =============== MEMBRES DE LA ROOM ===============
+// =============== PAGE REQUESTS ===============
+const FIELDS = [["tagline", "Tagline"], ["bio", "Biography"], ["instagram", "Instagram"], ["spotify", "Spotify"], ["soundcloud", "SoundCloud"], ["youtube", "YouTube"], ["website", "Website"], ["photo_url", "Main photo"], ["card_url", "Square photo"], ["gallery", "Gallery"]];
+const RSTATUS = { awaiting_artists: "Waiting for artists", pending_admin: "Waiting for you", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" };
+const RCLASS = { awaiting_artists: "new", pending_admin: "in_progress", approved: "accepted", rejected: "declined", cancelled: "archived" };
+const showVal = (k, v) => {
+  if (k === "gallery") return (v || []).length ? `<div class="gal">${v.map((u) => `<img src="${esc(media(u))}">`).join("")}</div>` : "—";
+  if (k === "photo_url" || k === "card_url") return v ? `<img src="${esc(media(v))}" style="width:70px;height:70px;object-fit:cover;border-radius:8px">` : "—";
+  return v ? `<span style="white-space:pre-wrap">${esc(v)}</span>` : "—";
+};
+let requests = [];
+async function loadRequests() {
+  const { data } = await sb.from("floriqa_profile_requests").select("*, floriqa_artists(name)").order("created_at", { ascending: false }).limit(200);
+  requests = data || [];
+  $("#nReq").textContent = requests.filter((r) => r.status === "pending_admin").length || "";
+  renderRequests();
+}
+function renderRequests() {
+  const f = $("#rqFilter").value;
+  const list = requests.filter((r) => f === "all" || r.status === f);
+  $("#rqList").innerHTML = list.length ? list.map((r) => `
+    <div class="list-item" data-id="${r.id}"><div><b>${esc(r.floriqa_artists?.name || "")}</b><div class="muted">${fmtDate(r.created_at)} · ${Object.keys(r.proposed).length} change(s)</div></div>
+      <span class="badge ${RCLASS[r.status]}">${RSTATUS[r.status]}</span></div>`).join("") : `<p class="muted">Nothing here.</p>`;
+  $$("#rqList .list-item").forEach((el) => el.onclick = () => showRequest(el.dataset.id));
+}
+$("#rqFilter").onchange = renderRequests;
+function showRequest(id) {
+  const r = requests.find((x) => x.id === id);
+  const full = { ...r.previous, ...r.proposed };
+  $("#rqDetail").innerHTML = `
+    <div class="toolbar"><h3 class="grow">${esc(r.floriqa_artists?.name || "")} — page change request</h3><span class="badge ${RCLASS[r.status]}">${RSTATUS[r.status]}</span></div>
+    <p class="muted">Requested ${fmtDate(r.created_at)} by ${esc(r.requested_email || "")} (${r.requester_kind === "team" ? "team" : "artist"})${r.approvals?.length ? ` · approved by ${r.approvals.map(esc).join(", ")}` : ""}</p>
+    <h4 style="margin:1rem 0 .4rem">What changed</h4>
+    <table class="diff" style="width:100%"><tr><th>Field</th><th>Old version</th><th>New version</th></tr>
+      ${Object.keys(r.proposed).map((k) => `<tr><td>${FIELDS.find((f) => f[0] === k)?.[1] || k}</td><td>${showVal(k, r.previous[k])}</td><td>${showVal(k, r.proposed[k])}</td></tr>`).join("")}</table>
+    <h4 style="margin:1.2rem 0 .4rem">Full new page</h4>
+    <table class="diff" style="width:100%">${FIELDS.map(([k, l]) => `<tr><td>${l}</td><td>${showVal(k, full[k])}</td></tr>`).join("")}</table>
+    ${r.status === "pending_admin" ? `
+      <label class="field" style="margin-top:1rem"><span>Note to the artist (optional)</span><input type="text" id="rqNote"></label>
+      <div class="toolbar"><button class="btn primary" id="rqOk">Approve & publish</button><button class="btn danger" id="rqNo">Reject</button></div>`
+    : r.admin_note ? `<p class="muted" style="margin-top:1rem">Note: ${esc(r.admin_note)}</p>` : ""}`;
+  if (r.status !== "pending_admin") return;
+  const decide = async (ok) => {
+    const { error } = await sb.rpc("floriqa_decide_request", { p_id: id, p_approve: ok, p_note: $("#rqNote").value.trim() || null });
+    if (error) return toast("Error: " + error.message, "err");
+    toast(ok ? "Approved — the page is updated." : "Request rejected.");
+    await loadRequests(); showRequest(id); if (ok) loadArtists();
+  };
+  $("#rqOk").onclick = () => decide(true);
+  $("#rqNo").onclick = () => decide(false);
+}
+
+// =============== ADMINS ===============
 $("#invForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
-  const { error } = await sb.from("floriqa_invites").upsert({
-    email: f.get("email").trim().toLowerCase(), display_name: f.get("name").trim() || null, role: f.get("role"), artist_id: f.get("artist") || null,
-  });
-  if (error) return toast("Erreur : " + error.message, "err");
-  e.target.reset(); toast("Accès donné. Envoie-lui le lien de la Room."); loadMembers();
+  const { error } = await sb.from("floriqa_invites").upsert({ email: f.get("email").trim().toLowerCase(), display_name: f.get("name").trim() || null, role: "admin" });
+  if (error) return toast("Error: " + error.message, "err");
+  e.target.reset(); toast("Admin added. They can now sign in."); loadAdmins();
 });
-
-async function loadMembers() {
-  const [{ data: invs }, { data: reqs }, { data: mems }] = await Promise.all([
-    sb.from("floriqa_invites").select("*").order("created_at"),
-    sb.from("floriqa_access_requests").select("*").order("created_at"),
-    sb.from("floriqa_members").select("*").order("role").order("display_name"),
+async function loadAdmins() {
+  const [{ data: invs }, { data: mems }] = await Promise.all([
+    sb.from("floriqa_invites").select("*").eq("role", "admin").order("created_at"),
+    sb.from("floriqa_members").select("*").eq("role", "admin").order("display_name"),
   ]);
-  $("#nReq").textContent = reqs?.length || "";
-  const aName = (id) => artists.find((a) => a.id === id)?.name;
-  const artistOpts = (sel) => `<option value="">— aucune fiche —</option>` + artists.map((a) => `<option value="${a.id}" ${a.id === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
-  const roleOpts = (sel) => Object.entries(ROLES).map(([k, l]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${l}</option>`).join("");
-
-  $("#invList").innerHTML = invs?.length ? `<p class="muted" style="margin:.8rem 0 .4rem">En attente de création de compte :</p>` + invs.map((i) => `
-    <div class="file-row" data-id="${esc(i.email)}"><div><b>${esc(i.display_name || i.email)}</b> <span class="muted">${esc(i.email)} · ${ROLES[i.role]}${i.artist_id ? " · " + esc(aName(i.artist_id) || "") : ""}</span></div>
-      <div class="actions"><button class="btn small danger" data-del>Annuler</button></div></div>`).join("") : "";
-  $$("#invList .file-row").forEach((row) => $("[data-del]", row).onclick = async () => {
-    await sb.from("floriqa_invites").delete().eq("email", row.dataset.id); loadMembers();
-  });
-
-  $("#reqList").innerHTML = reqs?.length ? reqs.map((r) => `
-    <div class="file-row" data-id="${r.user_id}">
-      <div><b>${esc(r.display_name)}</b> <span class="muted">${esc(r.email || "")} · ${fmtDate(r.created_at)}</span>
-        ${r.message ? `<div class="muted" style="margin-top:.3rem">« ${esc(r.message)} »</div>` : ""}</div>
-      <div class="actions">
-        <select data-role style="width:auto">${roleOpts("artist")}</select>
-        <select data-artist style="width:auto">${artistOpts(null)}</select>
-        <button class="btn small primary" data-ok>Donner accès</button><button class="btn small danger" data-no>Refuser</button>
-      </div>
-    </div>`).join("") : `<p class="muted">Aucune demande en attente.</p>`;
-  $$("#reqList .file-row").forEach((row) => {
-    const uid = row.dataset.id;
-    $("[data-ok]", row).onclick = async () => {
-      const { error } = await sb.rpc("floriqa_approve", { p_user: uid, p_role: $("[data-role]", row).value, p_artist: $("[data-artist]", row).value || null });
-      toast(error ? "Erreur : " + error.message : "Accès donné.", error ? "err" : "ok"); loadMembers();
-    };
-    $("[data-no]", row).onclick = async () => {
-      if (!confirm("Refuser cette demande ?")) return;
-      await sb.from("floriqa_access_requests").delete().eq("user_id", uid); loadMembers();
-    };
-  });
-
-  $("#memList").innerHTML = (mems || []).map((m) => `
-    <div class="file-row" data-id="${m.user_id}">
-      <div><b>${esc(m.display_name)}</b> <span class="muted">${esc(m.email || "")}</span></div>
-      <div class="actions">
-        <select data-role style="width:auto" ${m.user_id === me.user_id ? "disabled" : ""}>${roleOpts(m.role)}</select>
-        <select data-artist style="width:auto">${artistOpts(m.artist_id)}</select>
-        <button class="btn small" data-save>Enregistrer</button>
-        ${m.user_id === me.user_id ? "" : `<button class="btn small danger" data-del>Retirer l'accès</button>`}
-      </div>
-    </div>`).join("");
-  $$("#memList .file-row").forEach((row) => {
-    const uid = row.dataset.id;
-    $("[data-save]", row).onclick = async () => {
-      const upd = { artist_id: $("[data-artist]", row).value || null };
-      if (uid !== me.user_id) upd.role = $("[data-role]", row).value;
-      const { error } = await sb.from("floriqa_members").update(upd).eq("user_id", uid);
-      toast(error ? "Erreur : " + error.message : "Membre mis à jour.", error ? "err" : "ok");
-    };
-    const del = $("[data-del]", row);
-    if (del) del.onclick = async () => {
-      if (!confirm("Retirer l'accès à la Room ? Cette personne ne pourra plus y entrer.")) return;
-      await sb.from("floriqa_members").delete().eq("user_id", uid); loadMembers();
-    };
-  });
+  $("#invList").innerHTML = invs?.length ? `<p class="muted" style="margin:.8rem 0 .4rem">Not signed in yet:</p>` + invs.map((i) => `
+    <div class="file-row" data-id="${esc(i.email)}"><div><b>${esc(i.display_name || i.email)}</b> <span class="muted">${esc(i.email)}</span></div>
+      <div class="actions"><button class="btn small danger" data-del>Cancel</button></div></div>`).join("") : "";
+  $$("#invList .file-row").forEach((row) => $("[data-del]", row).onclick = async () => { await sb.from("floriqa_invites").delete().eq("email", row.dataset.id); loadAdmins(); });
+  $("#admList").innerHTML = (mems || []).map((m) => `
+    <div class="file-row" data-id="${m.user_id}"><div><b>${esc(m.display_name)}</b> <span class="muted">${esc(m.email || "")}</span></div>
+      <div class="actions">${m.user_id === me.user_id ? `<span class="muted">you</span>` : `<button class="btn small danger" data-del>Remove admin</button>`}</div></div>`).join("");
+  $$("#admList .file-row").forEach((row) => { const d = $("[data-del]", row); if (d) d.onclick = async () => {
+    if (!confirm("Remove this admin?")) return;
+    await sb.from("floriqa_members").delete().eq("user_id", row.dataset.id); loadAdmins();
+  }; });
 }
 
 boot();
