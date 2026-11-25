@@ -333,7 +333,9 @@ function artistForm(a) {
     await sb.from("floriqa_contacts").delete().eq("id", row.dataset.cid); loadArtists();
   });
   $$("[data-up]").forEach((inp) => inp.addEventListener("change", async () => {
-    const file = inp.files[0]; if (!file) return;
+    let file = inp.files[0]; inp.value = ""; if (!file) return;
+    file = await Floriqa.cropImage(file, { aspect: 1, title: inp.dataset.up === "card_url" ? "Crop — square photo (artists list)" : "Crop — main page photo" });
+    if (!file) return;
     toast("Uploading…");
     const url = await uploadPublic(file, a.slug); if (!url) return;
     const old = a[inp.dataset.up];

@@ -216,7 +216,9 @@ async function loadPage() {
     return sb.storage.from(PUB).getPublicUrl(path).data.publicUrl;
   };
   $$("[data-up]").forEach((inp) => inp.onchange = async () => {
-    const f = inp.files[0]; if (!f) return;
+    let f = inp.files[0]; inp.value = ""; if (!f) return;
+    f = await Floriqa.cropImage(f, { aspect: 1, title: inp.dataset.up === "card_url" ? "Crop — square photo (artists list)" : "Crop — main page photo" });
+    if (!f) return;
     toast("Uploading…"); const u = await upload(f); if (u) { draft[inp.dataset.up] = u; renderMedia(); }
   });
   $("#galAdd").onchange = async (e) => {
