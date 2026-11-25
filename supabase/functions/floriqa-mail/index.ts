@@ -109,14 +109,27 @@ Deno.serve(async (req) => {
     return json({ ok: r.ok, error: r.error });
   }
 
-  // ---------- réponse e-mail du promoteur (depuis Cloudflare Email Worker) ----------
-  if (body.type === "inbound") {
-    if (!INBOUND_SECRET || req.headers.get("x-floriqa-inbound") !== INBOUND_SECRET) return json({ error: "auth" }, 401);
-    const token = String(body.to || "").match(/booking\+([a-f0-9]{32})@/i)?.[1];
-    if (!token) return json({ error: "no token" }, 400);
-    const { data: b } = await db.from("floriqa_bookings").select("id").eq("reply_token", token.toLowerCase()).maybeSingle();
-    if (!b) return json({ error: "unknown thread" }, 404);
-    const text = String(body.text || "").slice(0, 20000).trim() || "(message vide)";
+  // ---------- réponse e-mail du promoteur (webhook Resend "email.received") ----------
+  if (body.type === "email.received") {
+    const s = new URL(req.url).searchParams.get("s");
+    if (!INBOUND_SECRET || s !== INBOUND_SECRET) return json({ error: "auth" }, 401);
+    const d = body.data || {};
+    const toList = [].concat(d.to || []).join(" ");
+    const token = toList.match(/booking\+([a-f0-9]{32})@/i)?.[1];
+    if (!token) return json({ ok: true, ignored: "no thread address" });
+    const { data: b } = await db.from("floriqa_bookings").select("id,email").eq("reply_token", token.toLowerCase()).maybeSingle();
+    if (!b) return json({ ok: true, ignored: "unknown thread" });
+    // contenu complet du message
+    let raw = "";
+    if (RESEND && d.email_id) {
+      const r = await fetch(`https://api.resend.com/emails/receiving/${d.email_id}`, { headers: { Authorization: `Bearer ${RESEND}` } });
+      if (r.ok) { const e = await r.json(); raw = e.text || String(e.html || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""); }
+    }
+    // on retire la citation de l'ancien message
+    const lines = String(raw).split(/\r?\n/);
+    const cut = lines.findIndex((l) => /^\s*>/.test(l) || /^(On|Le) .+(wrote|écrit)\s*:?\s*$/i.test(l.trim()) || /^-{2,}\s*Original Message/i.test(l));
+    const text = (cut > 0 ? lines.slice(0, cut) : lines).join("\n").slice(0, 20000).trim() || "(message vide)";
+    body.from = d.from;
     const { data: m } = await db.from("floriqa_messages").insert({
       booking_id: b.id, author_kind: "promoter", visibility: "external", author_name: String(body.from || "Promoter").slice(0, 200), body: text, email_status: "none",
     }).select().single();
