@@ -104,7 +104,7 @@ async function openBooking(id) {
   const b = bookings.find((x) => x.id === id);
   const { data: msgs } = await sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at");
   const yn = (v, d) => (v ? `Yes${d ? " — " + esc(d) : ""}` : "No");
-  const LBL = { promoter: "Promoter", manager: "Manager", artist: "Internal note to the manager" };
+  const LBL = { promoter: "Promoter", manager: "Manager", artist: "Internal note to the manager", note: "Internal note from Floriqa" };
   $("#bkView").innerHTML = `
     <div class="toolbar"><h3 class="grow">${esc(b.event)}</h3><span class="badge ${SCLASS[b.status]}">${SLABEL[b.status]}</span></div>
     <details><summary class="muted" style="cursor:pointer;margin-bottom:.6rem">Request details</summary>
@@ -120,7 +120,7 @@ async function openBooking(id) {
       </dl></details>
     <hr class="sep">
     ${(msgs || []).map((m) => `
-      <div class="comment ${m.author_kind === "artist" ? "note-me" : m.author_kind === "manager" ? "note-mgr" : ""}">
+      <div class="comment ${m.author_kind === "artist" ? "note-me" : m.author_kind === "manager" ? "note-mgr" : m.author_kind === "note" ? "note-int" : ""}">
         <div class="meta"><span><b>${esc(m.author_name || "")}</b> · ${LBL[m.author_kind]}</span><span>${fmtDate(m.created_at)}</span></div>
         <div class="body">${esc(m.body)}</div></div>`).join("") || `<p class="muted">No messages with the promoter yet.</p>`}
     <form id="noteForm" style="margin-top:.8rem">

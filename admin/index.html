@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex" />
   <title>Admin – Floriqa</title>
   <link rel="icon" href="../images/favicon.ico" />
-  <link rel="stylesheet" href="../assets/floriqa.css?v=1795640533" />
+  <link rel="stylesheet" href="../assets/floriqa.css?v=1795642744" />
   <style>
     .diff td { padding: .4rem .5rem; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.08); font-size: .88rem; }
     .diff th { text-align: left; font-size: .78rem; color: var(--muted); padding: .3rem .5rem; }
@@ -19,7 +19,7 @@
     <section id="auth" class="card auth-box hidden"></section>
     <section id="denied" class="card auth-box hidden">
       <h2>Access denied</h2>
-      <p class="muted" style="margin:.6rem 0 1rem">This account is not a Floriqa admin.</p>
+      <p class="muted" style="margin:.6rem 0 1rem">This account is not a Floriqa admin or manager.</p>
       <a class="btn" href="../panel/">Go to the Artists panel</a> <button class="btn" data-logout>Sign out</button>
     </section>
 
@@ -33,7 +33,7 @@
         <button class="tab active" data-tab="bookings">Bookings <span class="badge" id="nNew"></span></button>
         <button class="tab" data-tab="artists">Artists</button>
         <button class="tab" data-tab="requests">Page requests <span class="badge" id="nReq"></span></button>
-        <button class="tab" data-tab="admins">Admins</button>
+        <button class="tab hidden" data-tab="admins" data-super>Admins</button>
         <button class="tab" data-tab="rooms">Rooms</button>
         <button class="tab" data-tab="settings">Settings</button>
       </div>
@@ -63,7 +63,7 @@
       <div data-pane="artists" class="hidden">
         <div class="split">
           <div>
-            <button class="btn primary" id="arNew" style="width:100%;justify-content:center;margin-bottom:.8rem">+ New artist</button>
+            <button class="btn primary hidden" id="arNew" data-super style="width:100%;justify-content:center;margin-bottom:.8rem">+ New artist</button>
             <div id="arList"></div>
           </div>
           <div id="arDetail" class="card"><p class="muted">Select an artist.</p></div>
@@ -81,8 +81,28 @@
 
       <div data-pane="admins" class="hidden">
         <div class="card">
+          <h3>Manager addresses</h3>
+          <p class="muted" style="margin:.3rem 0 1rem">Each address gives access to this admin at <b id="adminUrl"></b>, limited to the artists it is assigned to (Artists tab → Managers). Alerts go to its forwarding e-mail. To give the address to someone else, change its password and forwarding e-mail.</p>
+          <form id="mgForm">
+            <div class="row2">
+              <label class="field"><span>Address</span><span style="display:flex;align-items:center;gap:.4rem"><input type="text" name="local" required pattern="[a-z0-9._-]+" placeholder="nadia" style="flex:1"><b>@floriqa.xyz</b></span></label>
+              <label class="field"><span>Name shown to promoters</span><input type="text" name="display_name" placeholder="Nadia"></label>
+            </div>
+            <div class="row2">
+              <label class="field"><span>Password (8+ characters)</span><input type="password" name="pw" required minlength="8" autocomplete="new-password"></label>
+              <label class="field"><span>Confirm password</span><input type="password" name="pw2" required minlength="8" autocomplete="new-password"></label>
+            </div>
+            <div class="row2">
+              <label class="field"><span>Forwarding e-mail (receives the alerts)</span><input type="email" name="forward_email" placeholder="name@gmail.com"></label>
+              <label class="field"><span>Access</span><select name="is_super"><option value="0">Manager — only its artists</option><option value="1">Full access — sees everything (like management@)</option></select></label>
+            </div>
+            <button class="btn primary" type="submit">Create address</button>
+          </form>
+          <div id="mgList" style="margin-top:1rem"></div>
+        </div>
+        <div class="card">
           <h3>Add an admin</h3>
-          <p class="muted" style="margin:.3rem 0 1rem">Managers must be admins to answer promoters. They sign in at <b id="adminUrl"></b> with this e-mail (a code is sent the first time).</p>
+          <p class="muted" style="margin:.3rem 0 1rem">Full access with a personal e-mail (a code is sent the first time).</p>
           <form id="invForm" class="toolbar">
             <input type="email" name="email" required placeholder="e-mail" style="max-width:280px">
             <input type="text" name="name" placeholder="Name" style="max-width:200px">
@@ -107,11 +127,11 @@
 
   <script>window.FLQ_BASE = "../";</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../assets/config.js?v=1795640533"></script>
-  <script src="../assets/common.js?v=1795640533"></script>
-  <script src="../assets/auth.js?v=1795640533"></script>
-  <script src="../assets/crop.js?v=1795640533"></script>
-  <script src="../assets/rooms.js?v=1795640533"></script>
-  <script src="admin.js?v=1795640533"></script>
+  <script src="../assets/config.js?v=1795642744"></script>
+  <script src="../assets/common.js?v=1795642744"></script>
+  <script src="../assets/auth.js?v=1795642744"></script>
+  <script src="../assets/crop.js?v=1795642744"></script>
+  <script src="../assets/rooms.js?v=1795642744"></script>
+  <script src="admin.js?v=1795642744"></script>
 </body>
 </html>

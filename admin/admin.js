@@ -12,7 +12,13 @@ const SITE = location.origin + location.pathname.replace(/admin\/.*$/, "");
 const STATUS = { new: "New", negotiating: "In negotiation", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled", unsuccessful: "Unsuccessful" };
 const SCLASS = { new: "new", negotiating: "in_progress", confirmed: "accepted", completed: "archived", cancelled: "declined", unsuccessful: "declined" };
 const PKCAT = { photo: "HD photos", presentation: "Presentations / riders", video: "Videos", audio: "Audio", admin: "Administrative documents", other: "Other" };
-let me = null, user = null;
+let me = null, user = null, managers = [], links = [];
+const MGMT = "management@floriqa.xyz";
+const myArtist = (id) => me.is_super || me.artists.includes(id);
+// répondre au promoteur : manager assigné ; super admins quand management@ est assigné
+const canNegotiate = (artistId) => !!artistId && links.some((l) => l.artist_id === artistId &&
+  (l.manager_email === me.email || (me.is_super && l.manager_email === MGMT)));
+const managersOf = (artistId) => links.filter((l) => l.artist_id === artistId).map((l) => l.manager_email);
 
 $$("[data-logout]").forEach((b) => b.addEventListener("click", async () => { await sb.auth.signOut(); location.reload(); }));
 
@@ -21,17 +27,20 @@ async function boot() {
   if (!session || session.user.is_anonymous) { show("auth"); return authFlow($("#auth"), { title: "Floriqa · Admin", onDone: boot }); }
   user = session.user;
   await sb.rpc("floriqa_claim_invite");
-  const { data: m } = await sb.from("floriqa_members").select("*").eq("user_id", user.id).maybeSingle();
-  if (!m || m.role !== "admin") return show("denied");
-  me = m;
-  $("#who").textContent = m.display_name;
+  const { data: m } = await sb.rpc("floriqa_staff_me");
+  if (!m || (!m.is_super && !m.is_manager)) return show("denied");
+  me = { ...m, display_name: m.name, user_id: user.id };
+  $("#who").textContent = `${m.name}${m.is_super ? "" : " · manager"}`;
   $("#adminUrl").textContent = SITE + "admin/";
+  document.body.classList.toggle("is-super", m.is_super);
+  $$("[data-super]").forEach((el) => el.classList.toggle("hidden", !m.is_super));
   show("panel");
+  await loadManagers();
   await loadArtists();
   await loadBookings();
   loadRequests();
-  loadAdmins();
-  accountSettings($("#account"), { name: m.display_name, email: user.email, redirect: location.origin + location.pathname });
+  if (m.is_super) loadAdmins();
+  accountSettings($("#account"), { name: m.name, email: user.email, redirect: location.origin + location.pathname, fixedEmail: m.is_manager });
   const wanted = new URLSearchParams(location.search).get("b");
   if (wanted) showBooking(wanted);
 }
@@ -79,7 +88,8 @@ $("#bkRefresh").addEventListener("click", async () => { await loadBookings(); if
 const KIND = {
   promoter: ["Promoter", "", ""],
   manager: ["Manager", "sent to the promoter", "border-left:3px solid #d3ecf7"],
-  artist: ["Internal note", "the promoter never sees it", "border-left:3px solid #f9e6b3;background:rgba(249,230,179,.08)"],
+  artist: ["Artist note", "the promoter never sees it", "border-left:3px solid #f9e6b3;background:rgba(249,230,179,.08)"],
+  note: ["Internal note", "artists, team and managers only", "border-left:3px solid #c9b6ff;background:rgba(201,182,255,.08)"],
 };
 const mailState = (m) => m.author_kind === "promoter" ? "received by e-mail" :
   m.email_status === "sent" ? "e-mail sent ✓" : m.email_status === "failed" ? "e-mail failed" : m.email_status === "pending" ? "e-mail pending" : "";
@@ -92,7 +102,7 @@ async function showBooking(id) {
   const yn = (v, d) => (v ? `Yes${d ? " — " + esc(d) : ""}` : "No");
   const rows = [
     ["Received", fmtDate(b.created_at)], ["Artist", esc(b.artist_name)],
-    ["Manager", artist?.manager_email ? esc(artist.manager_email) : `<span style="color:#ffb3ba">none — set it in the artist's profile</span>`],
+    ["Managers", managersOf(b.artist_id).length ? managersOf(b.artist_id).map(esc).join(", ") : `<span style="color:#ffb3ba">none — assign one in the artist's profile</span>`],
     ["Organisation", esc(b.organization)], ["Promoter", esc(b.promoter)],
     ["Phone", `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>`], ["E-mail", esc(b.email)],
     ["Event", esc(b.event)], ["Venue", esc(b.venue)], ["Date(s)", esc(b.dates)], ["Line-up", esc(b.lineup)],
@@ -101,10 +111,8 @@ async function showBooking(id) {
     ["B2B", esc(b.b2b || "No")], ["Duration", esc(b.duration)], ["Time", esc(b.perf_time)], ["Net fee", `<b>${esc(b.fee)} €</b>`],
     ["Transport", yn(b.transport, b.transport_details)], ["Accommodation", yn(b.accommodation, b.accommodation_details)], ["Hospitality", yn(b.hospitality, b.hospitality_details)],
   ];
-  const [{ data: msgs }, { data: note }] = await Promise.all([
-    sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at"),
-    sb.from("floriqa_booking_notes").select("notes").eq("booking_id", id).maybeSingle(),
-  ]);
+  const { data: msgs } = await sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at");
+  const nego = canNegotiate(b.artist_id);
   const pk = artist?.floriqa_presskits;
   const pkLink = pk?.enabled ? `${SITE}presskit.html?k=${pk.token}` : null;
 
@@ -122,28 +130,41 @@ async function showBooking(id) {
         <div class="body">${esc(m.body)}</div>
         ${m.email_status === "failed" ? `<div class="muted" style="color:#ffb3ba">${esc(m.email_error || "")}</div>` : ""}
       </div>`).join("")}
-    <form id="replyForm" style="margin-top:.8rem">
+    ${nego ? `<form id="replyForm" style="margin-top:.8rem">
       <label class="field"><span>Reply to the promoter (${esc(b.email)})</span><textarea name="body" required placeholder="Your reply…"></textarea></label>
       <div class="toolbar">
         <button class="btn primary" type="submit">Send to the promoter</button>
         ${pkLink ? `<button class="btn" type="button" id="insertPk">Insert press-kit link</button>` : `<span class="muted">No active press-kit link for this artist</span>`}
       </div>
+    </form>` : `<p class="muted" style="margin-top:.8rem">${b.artist_id ? `Only this artist's managers answer the promoter${me.is_super ? ` (add <b>${MGMT}</b> to the artist to negotiate yourself)` : ""}.` : "Link an artist below to answer the promoter."} You can leave internal notes.</p>`}
+    <form id="noteForm" style="margin-top:.8rem">
+      <label class="field"><span>Internal note — seen by the artist, their team and managers. <b>Never by the promoter.</b></span><textarea name="body" required placeholder="Note…" style="min-height:70px"></textarea></label>
+      <button class="btn" type="submit">Add internal note</button>
     </form>
     <hr class="sep">
     <div class="row2">
       <label class="field"><span>Status</span>
         <select id="bkStatus">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === b.status ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="field"><span>Linked artist</span>
-        <select id="bkArtist"><option value="">—</option>${artists.map((a) => `<option value="${a.id}" ${a.id === b.artist_id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
+        <select id="bkArtist"><option value="">—</option>${artists.filter((a) => myArtist(a.id)).map((a) => `<option value="${a.id}" ${a.id === b.artist_id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
     </div>
-    <label class="field"><span>Admin notes (only admins see them)</span><textarea id="bkNotes">${esc(note?.notes || "")}</textarea></label>
-    <div class="toolbar"><button class="btn" id="bkSave">Save</button><span class="grow"></span><button class="btn danger" id="bkDel">Delete</button></div>`;
+    <div class="toolbar"><button class="btn" id="bkSave">Save</button><span class="grow"></span>${me.is_super ? `<button class="btn danger" id="bkDel">Delete</button>` : ""}</div>`;
 
   if (pkLink) $("#insertPk").onclick = () => {
     const ta = $("#replyForm textarea");
     ta.value = (ta.value ? ta.value + "\n\n" : "") + `Press kit ${b.artist_name}: ${pkLink}`; ta.focus();
   };
-  $("#replyForm").addEventListener("submit", async (e) => {
+  $("#noteForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = e.target.body.value.trim(); if (!body) return;
+    const { data: m, error } = await sb.from("floriqa_messages").insert({
+      booking_id: id, author_kind: "note", visibility: "internal", author: user.id, author_name: me.display_name, body,
+    }).select().single();
+    if (error) return toast("Error: " + error.message, "err");
+    mail({ type: "message", id: m.id });
+    toast("Internal note added."); showBooking(id);
+  });
+  if (nego) $("#replyForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = e.target.body.value.trim(); if (!body) return;
     const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Sending…";
@@ -158,11 +179,10 @@ async function showBooking(id) {
   });
   $("#bkSave").onclick = async () => {
     const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, artist_id: $("#bkArtist").value || null }).eq("id", id);
-    const { error: e2 } = await sb.from("floriqa_booking_notes").upsert({ booking_id: id, notes: $("#bkNotes").value || null, updated_at: new Date().toISOString() });
-    if (error || e2) return toast("Could not save.", "err");
+    if (error) return toast("Could not save.", "err");
     toast("Saved."); await loadBookings(); showBooking(id);
   };
-  $("#bkDel").onclick = async () => {
+  if (me.is_super) $("#bkDel").onclick = async () => {
     if (!confirm("Permanently delete this request and its whole conversation?")) return;
     const { error } = await sb.from("floriqa_bookings").delete().eq("id", id);
     if (error) return toast("Could not delete.", "err");
@@ -176,17 +196,18 @@ async function loadArtists() {
   const { data, error } = await sb.from("floriqa_artists")
     .select("*, floriqa_tracks(*), floriqa_videos(*), floriqa_artist_photos(*), floriqa_presskits(*), floriqa_presskit_files(*), floriqa_contacts(*)").order("sort").order("name");
   if (error) return toast("Could not load artists.", "err");
-  artists = data.map((a) => ({ ...a, floriqa_presskits: Array.isArray(a.floriqa_presskits) ? a.floriqa_presskits[0] : a.floriqa_presskits }));
+  artists = data.filter((a) => myArtist(a.id)).map((a) => ({ ...a, floriqa_presskits: Array.isArray(a.floriqa_presskits) ? a.floriqa_presskits[0] : a.floriqa_presskits }));
   $("#arList").innerHTML = artists.map((a) => `
     <div class="list-item ${a.id === arSel ? "sel" : ""}" data-id="${a.id}">
       <div style="display:flex;gap:.7rem;align-items:center">
         ${(a.card_url || a.photo_url) ? `<img class="thumb" src="${esc(media(a.card_url || a.photo_url))}" alt="">` : `<div class="thumb"></div>`}
-        <div><b>${esc(a.name)}</b><div class="muted">${esc(a.tagline || "")}${a.floriqa_contacts?.length ? "" : " · no contact"}</div></div>
+        <div><b>${esc(a.name)}</b><div class="muted">${esc(a.tagline || "")}${a.floriqa_contacts?.length ? "" : " · no contact"}${managersOf(a.id).length ? "" : " · no manager"}</div></div>
       </div>
       ${a.published ? "" : `<span class="badge">Hidden</span>`}
     </div>`).join("");
   $$("#arList .list-item").forEach((el) => el.addEventListener("click", () => showArtist(el.dataset.id)));
   if (arSel) showArtist(arSel);
+  if (me.is_super) renderManagers();
 }
 const slugify = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const safeName = (n) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
@@ -225,7 +246,7 @@ function artistForm(a) {
         <label class="field"><span>Name (solo, duo, trio, band…)</span><input type="text" name="name" required value="${esc(a.name)}"></label>
         <label class="field"><span>Page address (e.g. kolok)</span><input type="text" name="slug" required pattern="[a-z0-9-]+" value="${esc(a.slug)}"></label>
       </div>
-      <div class="row2">${f("tagline", "Tagline (e.g. DJ & Producer)")}${f("manager_email", "Manager e-mail (receives bookings)", "email", "manager@…")}</div>
+      ${f("tagline", "Tagline (e.g. DJ & Producer)")}
       <label class="field"><span>Biography</span><textarea name="bio" style="min-height:140px">${esc(a.bio || "")}</textarea></label>
       <div class="row2">${f("instagram", "Instagram", "url")}${f("spotify", "Spotify", "url")}</div>
       <div class="row2">${f("soundcloud", "SoundCloud", "url")}${f("youtube", "YouTube", "url")}</div>
@@ -235,9 +256,17 @@ function artistForm(a) {
           <label class="field"><span>Visible on the site</span><select name="published"><option value="1" ${a.published ? "selected" : ""}>Yes</option><option value="0" ${a.published ? "" : "selected"}>No (hidden)</option></select></label>
         </div></div>
       <div class="toolbar"><button class="btn primary" type="submit">${isNew ? "Create artist" : "Save"}</button>
-        <span class="grow"></span>${isNew ? "" : `<button class="btn danger" type="button" id="arDel">Delete artist</button>`}</div>
+        <span class="grow"></span>${isNew || !me.is_super ? "" : `<button class="btn danger" type="button" id="arDel">Delete artist</button>`}</div>
     </form>
     ${isNew ? "" : `
+    <hr class="sep">
+    <h3>Managers</h3>
+    <p class="muted" style="margin:.3rem 0 .8rem">They see this artist's bookings, answer the promoter, edit this page, approve page requests and get the e-mail alerts.</p>
+    ${me.is_super ? `<div id="mgPick" style="display:flex;flex-wrap:wrap;gap:.4rem 1.2rem">${managers.map((m) => `
+      <label style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" value="${esc(m.email)}" ${managersOf(a.id).includes(m.email) ? "checked" : ""}>
+        <span>${esc(m.display_name || m.email)} <span class="muted">${esc(m.email)}</span></span></label>`).join("") || `<span class="muted">No manager address yet — create one in the Admins tab.</span>`}</div>
+      ${managers.length ? `<button class="btn small" id="mgSave" style="margin-top:.6rem">Save managers</button>` : ""}`
+    : `<p>${managersOf(a.id).map(esc).join(", ") || "—"}</p>`}
     <hr class="sep">
     <h3>Contacts — Artists panel access</h3>
     <p class="muted" style="margin:.3rem 0 .8rem">They sign in at <b>${esc(SITE)}panel/</b> with this e-mail. <b>Artists</b> (the members of the project) see bookings, the artist page and rooms. <b>Team</b> sees bookings and the artist page only — never rooms.</p>
@@ -310,7 +339,7 @@ function artistForm(a) {
     e.preventDefault();
     const fd = new FormData(form);
     const g = (k) => (fd.get(k) || "").toString().trim() || null;
-    const row = { name: g("name"), slug: slugify(g("slug") || ""), tagline: g("tagline"), bio: g("bio"), manager_email: g("manager_email")?.toLowerCase() || null,
+    const row = { name: g("name"), slug: slugify(g("slug") || ""), tagline: g("tagline"), bio: g("bio"),
       instagram: g("instagram"), spotify: g("spotify"), soundcloud: g("soundcloud"), youtube: g("youtube"), website: g("website"),
       sort: +fd.get("sort") || 0, published: fd.get("published") === "1" };
     const q = isNew ? sb.from("floriqa_artists").insert(row).select().single() : sb.from("floriqa_artists").update(row).eq("id", a.id).select().single();
@@ -321,6 +350,13 @@ function artistForm(a) {
   });
   if (isNew) return;
 
+  if ($("#mgSave")) $("#mgSave").onclick = async () => {
+    const want = $$("#mgPick input:checked").map((x) => x.value), have = managersOf(a.id);
+    const add = want.filter((x) => !have.includes(x)), del = have.filter((x) => !want.includes(x));
+    if (del.length) { const { error } = await sb.from("floriqa_artist_managers").delete().eq("artist_id", a.id).in("manager_email", del); if (error) return toast("Error: " + error.message, "err"); }
+    if (add.length) { const { error } = await sb.from("floriqa_artist_managers").insert(add.map((m) => ({ artist_id: a.id, manager_email: m }))); if (error) return toast("Error: " + error.message, "err"); }
+    toast("Managers saved."); await loadManagers(); loadArtists();
+  };
   $("#ctForm").onsubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -354,7 +390,7 @@ function artistForm(a) {
     const p = photos.find((x) => x.id === b.dataset.phdel);
     await sb.from("floriqa_artist_photos").delete().eq("id", p.id); await removePublic(p.url); loadArtists();
   });
-  $("#arDel").onclick = async () => {
+  if ($("#arDel")) $("#arDel").onclick = async () => {
     if (!confirm(`Delete ${a.name} with all tracks, videos, photos, contacts and private files? This cannot be undone.`)) return;
     const paths = pkFiles.map((x) => x.storage_path);
     const { error } = await sb.from("floriqa_artists").delete().eq("id", a.id);
@@ -492,6 +528,76 @@ function showRequest(id) {
   $("#rqOk").onclick = () => decide(true);
   $("#rqNo").onclick = () => decide(false);
 }
+
+// =============== MANAGER ADDRESSES ===============
+async function loadManagers() {
+  const [{ data: ms }, { data: ls }] = await Promise.all([
+    sb.from("floriqa_managers").select("*").order("is_super", { ascending: false }).order("email"),
+    sb.from("floriqa_artist_managers").select("*"),
+  ]);
+  managers = ms || []; links = ls || [];
+  if (me.is_super) renderManagers();
+}
+const adminCall = async (payload) => {
+  const { data, error } = await sb.functions.invoke("floriqa-admin", { body: payload });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch {} return { error: msg }; }
+  return data;
+};
+function renderManagers() {
+  const nameOf = (id) => artists.find((a) => a.id === id)?.name || "?";
+  $("#mgList").innerHTML = managers.map((m) => `
+    <div class="file-row" data-mg="${esc(m.email)}" style="flex-wrap:wrap">
+      <div><b>${esc(m.email)}</b>${m.is_super ? ` <span class="badge accepted">full access</span>` : ""}
+        <div class="muted">${esc(m.display_name || "")} · alerts → ${m.forward_email ? esc(m.forward_email) : `<span style="color:#ffb3ba">no forwarding e-mail</span>`}</div>
+        <div class="muted">Artists: ${links.filter((l) => l.manager_email === m.email).map((l) => esc(nameOf(l.artist_id))).join(", ") || "none"}</div></div>
+      <div class="actions"><button class="btn small" data-edit>Edit / reassign</button>${m.is_super ? "" : `<button class="btn small danger" data-del>Delete</button>`}</div>
+      <form class="hidden" data-form style="flex-basis:100%;margin-top:.6rem">
+        <div class="row2">
+          <label class="field"><span>Name shown to promoters</span><input type="text" name="display_name" value="${esc(m.display_name || "")}"></label>
+          <label class="field"><span>Forwarding e-mail (receives the alerts)</span><input type="email" name="forward_email" value="${esc(m.forward_email || "")}" placeholder="name@gmail.com"></label>
+        </div>
+        <div class="row2">
+          <label class="field"><span>New password (leave empty to keep it)</span><input type="password" name="pw" minlength="8" autocomplete="new-password"></label>
+          <label class="field"><span>Confirm new password</span><input type="password" name="pw2" minlength="8" autocomplete="new-password"></label>
+        </div>
+        <p class="muted" style="margin-bottom:.6rem">Changing the password signs out whoever is using this address. Give the new password to the new manager.</p>
+        <button class="btn primary" type="submit">Save</button>
+      </form>
+    </div>`).join("") || `<p class="muted">No manager address yet.</p>`;
+  $$("#mgList [data-mg]").forEach((row) => {
+    const email = row.dataset.mg, form = $("[data-form]", row);
+    $("[data-edit]", row).onclick = () => form.classList.toggle("hidden");
+    const del = $("[data-del]", row);
+    if (del) del.onclick = async () => {
+      if (!confirm(`Delete ${email}? The account is closed and removed from all its artists.`)) return;
+      const r = await adminCall({ action: "delete", email });
+      if (r.error) return toast(r.error, "err");
+      toast("Address deleted."); await loadManagers(); loadArtists();
+    };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if (fd.get("pw") !== fd.get("pw2")) return toast("The two passwords don't match.", "err");
+      const payload = { action: "update", email, display_name: fd.get("display_name"), forward_email: fd.get("forward_email") || null };
+      if (fd.get("pw")) payload.password = fd.get("pw");
+      const r = await adminCall(payload);
+      if (r.error) return toast(r.error, "err");
+      toast(payload.password ? "Saved. The new password is active; old sessions are signed out." : "Saved.");
+      loadManagers();
+    };
+  });
+}
+$("#mgForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  if (fd.get("pw") !== fd.get("pw2")) return toast("The two passwords don't match.", "err");
+  const btn = $("button[type=submit]", e.target); btn.disabled = true;
+  const r = await adminCall({ action: "create", local: fd.get("local"), display_name: fd.get("display_name"), password: fd.get("pw"),
+    forward_email: fd.get("forward_email") || null, is_super: fd.get("is_super") === "1" });
+  btn.disabled = false;
+  if (r.error) return toast(r.error, "err");
+  e.target.reset(); toast(`${r.email} created. Assign it to artists in the Artists tab.`); loadManagers();
+});
 
 // =============== ADMINS ===============
 $("#invForm").addEventListener("submit", async (e) => {

@@ -96,13 +96,13 @@
 // ---------- Settings (name, e-mail, password) — shared by the panels ----------
 (function () {
   const { sb, esc, toast } = window.Floriqa;
-  window.Floriqa.accountSettings = function (box, { name, email, redirect }) {
+  window.Floriqa.accountSettings = function (box, { name, email, redirect, fixedEmail }) {
     box.innerHTML = `
       <div class="card"><h3 style="margin-bottom:.8rem">Display name</h3>
         <form id="sName" class="toolbar"><input type="text" name="name" required maxlength="80" value="${esc(name || "")}" class="grow" style="max-width:320px"><button class="btn primary" type="submit">Save</button></form></div>
-      <div class="card"><h3 style="margin-bottom:.4rem">E-mail address</h3>
+      ${fixedEmail ? `<div class="card"><h3 style="margin-bottom:.4rem">E-mail address</h3><p class="muted"><b>${esc(email || "")}</b> — this address is managed by Floriqa.</p></div>` : `<div class="card"><h3 style="margin-bottom:.4rem">E-mail address</h3>
         <p class="muted" style="margin-bottom:.8rem">Current: <b>${esc(email || "")}</b>. We'll send a confirmation link to the new address${" "}(and to the current one). Your access follows your new address once confirmed.</p>
-        <form id="sMail" class="toolbar"><input type="email" name="email" required placeholder="new e-mail" class="grow" style="max-width:320px"><button class="btn primary" type="submit">Change e-mail</button></form></div>
+        <form id="sMail" class="toolbar"><input type="email" name="email" required placeholder="new e-mail" class="grow" style="max-width:320px"><button class="btn primary" type="submit">Change e-mail</button></form></div>`}
       <div class="card"><h3 style="margin-bottom:.8rem">Password</h3>
         <form id="sPw">
           <label class="field"><span>Current password</span><input type="password" name="cur" required autocomplete="current-password"></label>
@@ -117,7 +117,7 @@
       const { error } = await sb.rpc("floriqa_set_my_name", { p_name: e.target.name.value });
       toast(error ? "Error: " + error.message : "Name saved.", error ? "err" : "ok");
     };
-    box.querySelector("#sMail").onsubmit = async (e) => {
+    if (!fixedEmail) box.querySelector("#sMail").onsubmit = async (e) => {
       e.preventDefault();
       const n = e.target.email.value.trim().toLowerCase();
       if (n === (email || "").toLowerCase()) return toast("That's already your e-mail.", "err");
