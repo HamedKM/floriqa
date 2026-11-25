@@ -126,7 +126,7 @@ body.app { background: transparent; min-height: 100vh; }
 body.app .list-item, body.app .file-row, body.app .stat, body.app .comment { background: rgba(0,0,0,.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius); }
 body.app .list-item { border: 1px solid transparent; }
 body.app .list-item:hover, body.app .list-item.sel { border-color: rgba(255,255,255,.35); background: rgba(0,0,0,.4); }
-body.app .modal { position: fixed; inset: 5vh 5vw; overflow: auto; z-index: 200; background: rgba(0,0,0,.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+body.app .modal { position: fixed; inset: 4.5rem 5vw 5vh; z-index: 300; overflow: auto; background: rgba(0,0,0,.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 body.app input[type=text], body.app input[type=email], body.app input[type=password], body.app input[type=number], body.app input[type=url], body.app select, body.app textarea { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; }
 body.app .mobile-menu { background: rgba(0,0,0,.35); }
 .toast { background: rgba(0,0,0,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; }
