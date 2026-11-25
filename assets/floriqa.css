@@ -191,4 +191,4 @@ hr.sep { border: 0; border-top: 1px solid rgba(255,255,255,.1); margin: 1.2rem 0
 .confirm-box { width: min(520px, 100%); margin: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
 .confirm-preview { white-space: pre-wrap; max-height: 30vh; overflow: auto; padding: .7rem .9rem; border-radius: 12px; background: rgba(255,255,255,.06); font-size: .9rem; }
 
-select.locked { pointer-events: none; background-image: none; cursor: default; }
+select.locked { pointer-events: none; background-image: none; cursor: default; -webkit-appearance: none; appearance: none; font-weight: 600; }
