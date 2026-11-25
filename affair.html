@@ -7,7 +7,17 @@
   <link rel="icon" href="images/favicon.ico" />
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795648421" />
+  <style>
+    .form .mini-label { font-size: .8rem; opacity: .85; margin: 0 0 .35rem; }
+    .form .date-row { display: flex; gap: .5rem; align-items: center; }
+    .form .date-row input { flex: 1; }
+    .form .date-row button { margin-bottom: .9rem; font-size: 1.3rem; line-height: 1; }
+    .form .link-btn { background: none; border: 0; color: inherit; font: inherit; font-size: .85rem; cursor: pointer; padding: 0; margin: -.4rem 0 .9rem; opacity: .9; text-decoration: underline; }
+    .form .time3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: .35rem; }
+    .form .time3 select { padding-left: .5rem; padding-right: .3rem; }
+    #durOut { margin-top: -.3rem; margin-bottom: .9rem; }
+  </style>
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795648574" />
 </head>
 <body>
   <main class="page">
@@ -28,7 +38,10 @@
       <h3>EVENT DETAILS</h3>
       <input type="text" name="event" placeholder="Event" required maxlength="200" />
       <input type="text" name="venue" placeholder="Venue" required maxlength="200" />
-      <input type="text" name="dates" placeholder="Event date(s)" required maxlength="200" />
+      <div class="mini-label">Performance date(s)</div>
+      <div id="dateList"></div>
+      <button type="button" class="link-btn" id="addDate">+ Add another date</button>
+      <input type="hidden" name="dates" />
       <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
       <div class="row2">
         <input type="text" name="country" placeholder="Country" required maxlength="100" />
@@ -43,9 +56,18 @@
       </label>
       <div class="toggle-content hidden" id="c_b2b"><input type="text" name="b2b" placeholder="B2B (artist name)" maxlength="200"></div>
       <div class="row2">
-        <input type="text" name="duration" placeholder="Duration of performance (hours)" required maxlength="50" />
-        <input type="text" name="perf_time" placeholder="Time of performance (e.g. 22h - 00h)" required maxlength="50" />
+        <div><div class="mini-label">Set starts</div><div class="time3" data-time="start">
+          <select data-h aria-label="Set starts hour"><option value="" disabled selected>Hour</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
+          <select data-m aria-label="Set starts minutes"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+          <select data-ap aria-label="Set starts AM or PM"><option>PM</option><option>AM</option></select></div></div>
+        <div><div class="mini-label">Set ends</div><div class="time3" data-time="end">
+          <select data-h aria-label="Set ends hour"><option value="" disabled selected>Hour</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
+          <select data-m aria-label="Set ends minutes"><option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option></select>
+          <select data-ap aria-label="Set ends AM or PM"><option>PM</option><option>AM</option></select></div></div>
       </div>
+      <p class="mini-label" id="durOut">Duration: —</p>
+      <input type="hidden" name="perf_time" />
+      <input type="hidden" name="duration" />
 
       <h3>OFFER DETAILS</h3>
       <input type="text" name="fee" placeholder="Net fee offer in €" required maxlength="50" />
@@ -79,8 +101,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795648421"></script>
-  <script src="assets/common.js?v=1795648421"></script>
+  <script src="assets/config.js?v=1795648574"></script>
+  <script src="assets/common.js?v=1795648574"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -117,10 +139,52 @@
       box.addEventListener("change", update); update();
     });
 
+    // ----- dates -----
+    const dateList = document.getElementById("dateList");
+    const today = new Date(); today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    const minDate = today.toISOString().slice(0, 10);
+    const addDate = () => {
+      const row = document.createElement("div");
+      row.className = "date-row";
+      row.innerHTML = `<input type="date" min="${minDate}" aria-label="Performance date"><button type="button" class="link-btn" title="Remove this date">×</button>`;
+      row.querySelector("button").onclick = () => { if (dateList.children.length > 1) row.remove(); };
+      dateList.appendChild(row);
+    };
+    addDate();
+    document.getElementById("addDate").onclick = addDate;
+    const fmtDay = (v) => { const [y, m, d] = v.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); };
+    const readDates = () => [...new Set([...dateList.querySelectorAll("input")].map(i => i.value).filter(Boolean))].sort();
+
+    // ----- horaires AM/PM -----
+    const readTime = (k) => {
+      const w = document.querySelector(`[data-time="${k}"]`);
+      const h = w.querySelector("[data-h]").value, m = w.querySelector("[data-m]").value, ap = w.querySelector("[data-ap]").value;
+      if (!h) return null;
+      return { label: `${h}:${m} ${ap}`, min: ((+h % 12) + (ap === "PM" ? 12 : 0)) * 60 + +m };
+    };
+    const duration = () => {
+      const a = readTime("start"), b = readTime("end");
+      if (!a || !b) return null;
+      let d = b.min - a.min; if (d <= 0) d += 24 * 60;
+      return d;
+    };
+    const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
+    document.querySelectorAll(".time3 select").forEach(s => s.addEventListener("change", () => {
+      const d = duration();
+      document.getElementById("durOut").textContent = "Duration: " + (d ? fmtDur(d) : "—");
+    }));
+
     const socialOk = (u) => !u || /^(https?:\/\/)?(www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)\/\S+$/i.test(u.trim());
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const days = readDates();
+      if (!days.length) { dateList.querySelector("input").focus(); toast("Please choose the performance date.", "err"); return; }
+      const st = readTime("start"), en = readTime("end");
+      if (!st || !en) { toast("Please choose the start and end time of the set.", "err"); return; }
+      form.dates.value = days.map(fmtDay).join(", ");
+      form.perf_time.value = `${st.label} – ${en.label}`;
+      form.duration.value = fmtDur(duration());
       const fd = new FormData(form);
       if (fd.get("website")) return; // robot
       const missing = [...form.querySelectorAll("[required]")].find(i => !String(i.value).trim());
