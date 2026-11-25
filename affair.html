@@ -7,7 +7,7 @@
   <link rel="icon" href="images/favicon.ico" />
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795648086" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795648347" />
 </head>
 <body>
   <main class="page">
@@ -74,13 +74,13 @@
     <div id="done" class="success glass hidden">
       <h2>THANK YOU</h2>
       <p>Your booking request has been received. A confirmation has been sent to your e-mail address — simply reply to it to continue the conversation with our team.</p>
-      <a class="btn-white" style="display:inline-block;text-decoration:none" href="artists.html">Back to artists</a>
+      <a class="btn-white" style="display:inline-block;text-decoration:none" href="artists.html">See our other artists</a>
     </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795648086"></script>
-  <script src="assets/common.js?v=1795648086"></script>
+  <script src="assets/config.js?v=1795648347"></script>
+  <script src="assets/common.js?v=1795648347"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -93,8 +93,18 @@
       const { data } = await sb.from("floriqa_artists").select("id,name").eq("published", true).order("sort").order("name");
       (data || []).forEach(a => { const o = new Option(a.name, a.name); o.dataset.id = a.id; select.add(o); });
       if (wanted) {
-        const opt = [...select.options].find(o => o.value.toLowerCase() === wanted.toLowerCase());
-        if (opt) opt.selected = true; else select.add(new Option(wanted, wanted, true, true));
+        // lien d'un artiste : le formulaire est réservé à cet artiste, on ne peut pas en choisir un autre
+        let opt = [...select.options].find(o => o.value.toLowerCase() === wanted.toLowerCase());
+        if (!opt) {
+          const { data: hit } = await sb.rpc("floriqa_artist_by_name", { p_name: wanted });
+          const a = hit?.[0];
+          opt = new Option(a?.name || wanted, a?.name || wanted);
+          if (a) opt.dataset.id = a.id;
+        }
+        select.innerHTML = ""; select.add(opt); opt.selected = true;
+        select.classList.add("locked"); select.tabIndex = -1;
+        select.addEventListener("mousedown", (e) => e.preventDefault());
+        select.addEventListener("keydown", (e) => { if (e.key !== "Tab") e.preventDefault(); });
       }
     })();
 
