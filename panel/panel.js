@@ -243,8 +243,7 @@ function showRequest(r) {
   const keys = Object.keys(r.proposed);
   const full = { ...r.previous, ...r.proposed };
   const box = document.createElement("div");
-  box.className = "card";
-  box.style.cssText = "position:fixed;inset:5vh 5vw;overflow:auto;z-index:200;background:#141821";
+  box.className = "card modal";
   box.innerHTML = `
     <div class="toolbar"><h3 class="grow">Change request · ${fmtDate(r.created_at)}</h3><span class="badge ${RCLASS[r.status]}">${RSTATUS[r.status]}</span><button class="btn small" id="x">Close</button></div>
     <p class="muted">Requested by ${esc(r.requested_email || "")} (${r.requester_kind === "team" ? "team" : "artist"})${r.approvals?.length ? ` · approved by ${r.approvals.map(esc).join(", ")}` : ""}${r.admin_note ? ` · Floriqa note: ${esc(r.admin_note)}` : ""}</p>

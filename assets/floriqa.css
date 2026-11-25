@@ -121,8 +121,16 @@ body.app { background: transparent; min-height: 100vh; }
 .video-bg.negative video { filter: invert(1); }
 .video-bg.negative .video-shade { background: rgba(8, 10, 16, .55); }
 .app-wrap { max-width: 1200px; margin: 0 auto; padding: 6.5rem 1.5rem 3rem; }
-.card { background: rgba(14,16,22,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); border-radius: var(--radius); padding: 1.2rem; }
-body.app .list-item, body.app .file-row, body.app .stat, body.app .comment { background: rgba(14,16,22,.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* verre noir : l'inverse du verre blanc du site (formulaire Affair, menu mobile) */
+.card { background: rgba(0,0,0,.32); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 0; border-radius: var(--radius); padding: 1.4rem; box-shadow: 0 0 30px rgba(0,0,0,.25); }
+body.app .list-item, body.app .file-row, body.app .stat, body.app .comment { background: rgba(0,0,0,.28); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius); }
+body.app .list-item { border: 1px solid transparent; }
+body.app .list-item:hover, body.app .list-item.sel { border-color: rgba(255,255,255,.35); background: rgba(0,0,0,.4); }
+body.app .modal { position: fixed; inset: 5vh 5vw; overflow: auto; z-index: 200; background: rgba(0,0,0,.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+body.app input[type=text], body.app input[type=email], body.app input[type=password], body.app input[type=number], body.app input[type=url], body.app select, body.app textarea { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; }
+body.app .mobile-menu { background: rgba(0,0,0,.35); }
+.toast { background: rgba(0,0,0,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; }
+.toast.err { background: rgba(139,45,58,.75); }
 .card + .card { margin-top: 1rem; }
 .auth-box { max-width: 420px; margin: 2rem auto; }
 .auth-box h2 { margin-bottom: 1rem; }
