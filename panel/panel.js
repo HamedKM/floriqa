@@ -28,9 +28,9 @@ async function boot() {
   await sb.rpc("floriqa_claim_invite");
   const { data } = await sb.rpc("floriqa_whoami");
   me = data || { artists: [] };
-  if (!me.artists.length && !me.is_admin) {
+  if (!me.artists.length) {
     $("#auth").classList.remove("hidden");
-    $("#auth").innerHTML = `<h2>No access</h2><p class="muted" style="margin:.6rem 0 1rem">${esc(user.email)} is not linked to any Floriqa artist.</p><button class="btn" id="lo">Sign out</button>`;
+    $("#auth").innerHTML = `<h2>No access</h2><p class="muted" style="margin:.6rem 0 1rem">${esc(user.email)} is not linked to any Floriqa artist.${me.is_admin ? " As an admin, use the admin panel." : ""}</p>${me.is_admin ? `<a class="btn primary" href="../admin/">Go to the admin</a> ` : ""}<button class="btn" id="lo">Sign out</button>`;
     $("#lo").onclick = async () => { await sb.auth.signOut(); location.reload(); };
     return;
   }
@@ -49,7 +49,7 @@ function selectArtist() {
   const isMember = artist?.kind === "member";
   $("#who").textContent = artist ? `${artist.person} · ${artist.kind === "member" ? "Artist" : "Team"}` : (me.admin_name || me.email) + " · Admin";
   // tabs: team = bookings + page ; artists = all ; admin without artist = rooms
-  const tabs = { bookings: !!artist, page: !!artist, rooms: isMember || me.is_admin, settings: true };
+  const tabs = { bookings: true, page: true, rooms: isMember, settings: true };
   $$("#mainTabs .tab").forEach((t) => t.classList.toggle("hidden", !tabs[t.dataset.tab]));
   const first = Object.keys(tabs).find((k) => tabs[k]);
   openTab($("#mainTabs .tab.active:not(.hidden)")?.dataset.tab || first);
