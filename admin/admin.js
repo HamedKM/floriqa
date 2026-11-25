@@ -36,9 +36,17 @@ async function boot() {
   if (wanted) showBooking(wanted);
 }
 
+let roomsUI = null;
 $$(".tab").forEach((t) => t.addEventListener("click", () => {
   $$(".tab").forEach((x) => x.classList.toggle("active", x === t));
   $$("[data-pane]").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== t.dataset.tab));
+  if (t.dataset.tab === "rooms") {
+    roomsUI ||= Floriqa.mountRooms({
+      user, myEmail: () => (user.email || "").toLowerCase(),
+      myName: () => `${me.display_name} (Floriqa)`, defaultArtists: () => [],
+    });
+    roomsUI.load();
+  }
 }));
 
 // =============== BOOKINGS ===============
