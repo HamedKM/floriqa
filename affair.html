@@ -19,6 +19,15 @@
     .form select option { color: var(--navy); }
     .form .time-field { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; padding: .6rem .7rem; border-radius: 6px; background: #fff; color: var(--navy); font-size: .95rem; cursor: pointer; }
     .form .time-field svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .form .time-field.static { cursor: default; }
+    .form .time-field .flag { width: 16px; text-align: center; font-size: 1rem; line-height: 1; }
+    .time-pop .csearch { margin-bottom: .4rem; background: #f3f5f8; }
+    .time-pop .clist { max-height: 220px; overflow-y: auto; }
+    .time-pop .clist button { display: flex; gap: .55rem; align-items: center; width: 100%; border: 0; background: none; padding: .4rem .5rem; border-radius: 6px; font: inherit; font-size: .95rem; color: var(--navy); text-align: left; cursor: pointer; }
+    .time-pop .clist button:hover, .time-pop .clist button.on { background: rgba(34,58,92,.08); }
+    .time-pop .clist .flag { width: 1.2rem; text-align: center; }
+    .time-pop .cnone { padding: .4rem .5rem; opacity: .6; }
+    .form input, .form select, .form textarea, .form .date-field, .form .time-field { font-family: var(--font); font-size: .95rem; font-weight: 400; line-height: 1.25; color: var(--navy); -webkit-font-smoothing: antialiased; }
     .form .time-field .empty { color: rgba(34,58,92,.6); }
     .form .tpick { position: relative; }
     .time-pop { position: absolute; z-index: 50; top: calc(100% - .6rem); left: 0; right: 0; padding: .5rem; border-radius: 6px; background: #fff; color: var(--navy); box-shadow: 0 10px 30px rgba(0,0,0,.18); font-size: .95rem; }
@@ -29,7 +38,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795649613" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795649975" />
 </head>
 <body>
   <main class="page">
@@ -55,7 +64,8 @@
       <input type="hidden" name="dates" />
       <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
       <div class="row2">
-        <select name="country" id="country" required><option value="" disabled selected>Country</option></select>
+        <div class="tpick"><div class="time-field" id="countryField" tabindex="0" role="button" aria-label="Country"></div>
+          <input type="hidden" name="country" required /></div>
         <input type="text" name="city" placeholder="City" required maxlength="100" />
       </div>
       <input type="url" name="social_link" placeholder="Instagram or Facebook link (optional)" maxlength="300" />
@@ -70,7 +80,7 @@
         <div class="tpick"><div class="time-field" data-time="start" data-ph="Set starts" tabindex="0" role="button" aria-label="Set starts"></div></div>
         <div class="tpick"><div class="time-field" data-time="end" data-ph="Set ends" tabindex="0" role="button" aria-label="Set ends"></div></div>
       </div>
-      <input type="text" id="durOut" readonly tabindex="-1" placeholder="Duration (calculated automatically)" />
+      <div class="time-field static" id="durOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 5 10 7 10 18M17 3c0 5-10 7-10 18"/></svg><span class="empty">Duration (calculated automatically)</span></div>
       <input type="hidden" name="perf_time" />
       <input type="hidden" name="duration" />
 
@@ -106,8 +116,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795649613"></script>
-  <script src="assets/common.js?v=1795649613"></script>
+  <script src="assets/config.js?v=1795649975"></script>
+  <script src="assets/common.js?v=1795649975"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -146,10 +156,40 @@
 
     // ----- pays (ordre alphabétique) -----
     (() => {
-      const sel = document.getElementById("country");
+      const field = document.getElementById("countryField"), hidden = form.country;
       const names = new Intl.DisplayNames(["en"], { type: "region" });
-      "AF AX AL DZ AS AD AO AI AG AR AM AW AU AT AZ BS BH BD BB BY BE BZ BJ BM BT BO BA BW BR BN BG BF BI CV KH CM CA KY CF TD CL CN CO KM CG CD CK CR CI HR CU CW CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FO FJ FI FR GF PF GA GM GE DE GH GI GR GL GD GP GU GT GG GN GW GY HT HN HK HU IS IN ID IR IQ IE IM IL IT JM JP JE JO KZ KE KI XK KW KG LA LV LB LS LR LY LI LT LU MO MG MW MY MV ML MT MH MQ MR MU YT MX FM MD MC MN ME MS MA MZ MM NA NR NP NL NC NZ NI NE NG MK NO OM PK PW PS PA PG PY PE PH PL PT PR QA RE RO RU RW BL KN LC MF PM VC WS SM ST SA SN RS SC SL SG SX SK SI SB SO ZA KR SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TC TV UG UA AE GB US UY UZ VU VA VE VN VG VI YE ZM ZW".split(" ").map(c => names.of(c)).sort((a, b) => a.localeCompare(b, "en"))
-        .forEach(n => sel.add(new Option(n, n)));
+      const flag = (c) => String.fromCodePoint(...[...c].map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65));
+      const list = "AF AX AL DZ AS AD AO AI AG AR AM AW AU AT AZ BS BH BD BB BY BE BZ BJ BM BT BO BA BW BR BN BG BF BI CV KH CM CA KY CF TD CL CN CO KM CG CD CK CR CI HR CU CW CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FO FJ FI FR GF PF GA GM GE DE GH GI GR GL GD GP GU GT GG GN GW GY HT HN HK HU IS IN ID IR IQ IE IM IL IT JM JP JE JO KZ KE KI XK KW KG LA LV LB LS LR LY LI LT LU MO MG MW MY MV ML MT MH MQ MR MU YT MX FM MD MC MN ME MS MA MZ MM NA NR NP NL NC NZ NI NE NG MK NO OM PK PW PS PA PG PY PE PH PL PT PR QA RE RO RU RW BL KN LC MF PM VC WS SM ST SA SN RS SC SL SG SX SK SI SB SO ZA KR SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TC TV UG UA AE GB US UY UZ VU VA VE VN VG VI YE ZM ZW"
+        .split(" ").map(c => ({ c, n: names.of(c), f: flag(c) })).sort((a, b) => a.n.localeCompare(b.n, "en"));
+      const norm = (x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      let cur = null;
+      const paint = () => { field.innerHTML = cur ? `<span class="flag">${cur.f}</span><span>${cur.n}</span>` : `<span class="flag">🌍</span><span class="empty">Country</span>`; };
+      paint();
+      const open = () => {
+        if (openPop?.dataset.for === "country") return closePop();
+        closePop();
+        const pop = document.createElement("div");
+        pop.className = "time-pop"; pop.dataset.for = "country";
+        pop.innerHTML = `<input type="text" class="csearch" placeholder="Search a country…" autocomplete="off"><div class="clist"></div>`;
+        field.after(pop); openPop = pop;
+        const q = pop.querySelector(".csearch"), box = pop.querySelector(".clist");
+        const render = () => {
+          const t = norm(q.value.trim());
+          const hits = list.filter(x => !t || norm(x.n).includes(t) || x.c.toLowerCase() === t);
+          box.innerHTML = hits.map(x => `<button type="button" data-c="${x.c}" class="${cur?.c === x.c ? "on" : ""}"><span class="flag">${x.f}</span>${x.n}</button>`).join("") || `<p class="cnone">No country found</p>`;
+        };
+        render();
+        q.addEventListener("input", render);
+        q.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); box.querySelector("button")?.click(); } });
+        box.addEventListener("click", (e) => {
+          const b = e.target.closest("button"); if (!b) return;
+          cur = list.find(x => x.c === b.dataset.c); hidden.value = cur.n; paint(); closePop();
+        });
+        q.focus();
+        box.querySelector(".on")?.scrollIntoView({ block: "center" });
+      };
+      field.addEventListener("click", open);
+      field.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     })();
 
     // ----- dates -----
@@ -185,6 +225,8 @@
     const CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
     const times = {};
     const timeLabel = (t) => `${t.h}:${String(t.m).padStart(2, "0")} ${t.ap}`;
+    const shift3h = (t) => { const x = (((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m + 180) % 1440; const H = Math.floor(x / 60);
+      return { h: H % 12 || 12, m: x % 60, ap: H < 12 ? "AM" : "PM" }; };
     const readTime = (k) => { const t = times[k]; return t ? { label: timeLabel(t), min: ((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m } : null; };
     let openPop = null;
     const closePop = () => { if (openPop) { openPop.remove(); openPop = null; } };
@@ -194,13 +236,14 @@
       const t = times[f.dataset.time];
       f.innerHTML = `${CLOCK}<span class="${t ? "" : "empty"}">${t ? timeLabel(t) : f.dataset.ph}</span>`;
     };
-    document.querySelectorAll(".time-field").forEach((f) => {
+    document.querySelectorAll(".time-field[data-time]").forEach((f) => {
       paintField(f);
       const open = () => {
         if (openPop?.dataset.for === f.dataset.time) return closePop();
         closePop();
         const k = f.dataset.time;
-        const t = times[k] || { h: k === "start" ? 10 : 12, m: 0, ap: k === "start" ? "PM" : "AM" };
+        // par défaut : début 1:00 AM, fin = début + 3 h (4:00 AM)
+        const t = times[k] || (k === "start" ? { h: 1, m: 0, ap: "AM" } : { ...shift3h(times.start || { h: 1, m: 0, ap: "AM" }), auto: true });
         const pop = document.createElement("div");
         pop.className = "time-pop"; pop.dataset.for = k;
         const col = (name, vals, fmt) => `<div class="tcol" data-col="${name}">${vals.map(v => `<button type="button" data-v="${v}">${fmt(v)}</button>`).join("")}</div>`;
@@ -214,6 +257,9 @@
         f.after(pop); openPop = pop;
         const sync = (scroll) => {
           times[k] = { ...t };
+          // la fin suit le début (+3 h) tant qu'on ne l'a pas réglée soi-même
+          if (k === "start" && times.end?.auto) times.end = { ...shift3h(times.start), auto: true };
+          document.querySelectorAll(".time-field[data-time]").forEach(paintField);
           pop.querySelectorAll(".tcol").forEach(c => c.querySelectorAll("button").forEach(b => {
             const on = String(t[c.dataset.col]) === b.dataset.v;
             b.classList.toggle("on", on);
@@ -223,7 +269,7 @@
         };
         pop.querySelectorAll(".tcol").forEach(c => c.addEventListener("click", (e) => {
           const b = e.target.closest("button"); if (!b) return;
-          const v = b.dataset.v; t[c.dataset.col] = c.dataset.col === "ap" ? v : +v; sync(false);
+          const v = b.dataset.v; t[c.dataset.col] = c.dataset.col === "ap" ? v : +v; delete t.auto; sync(false);
         }));
         pop.querySelector(".tdone").onclick = closePop;
         sync(true);
@@ -240,7 +286,8 @@
     const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
     function updateDuration() {
       const d = duration();
-      document.getElementById("durOut").value = d ? "Duration: " + fmtDur(d) : "";
+      const sp = document.querySelector("#durOut span");
+      sp.textContent = d ? "Duration: " + fmtDur(d) : "Duration (calculated automatically)"; sp.classList.toggle("empty", !d);
     }
 
     const socialOk = (u) => !u || /^(https?:\/\/)?(www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)\/\S+$/i.test(u.trim());
@@ -257,7 +304,7 @@
       const fd = new FormData(form);
       if (fd.get("website")) return; // robot
       const missing = [...form.querySelectorAll("[required]")].find(i => !String(i.value).trim());
-      if (missing) { missing.focus(); toast("Please fill in all required fields.", "err"); return; }
+      if (missing) { (missing.type === "hidden" ? missing.parentElement : missing).scrollIntoView({ block: "center" }); missing.focus(); toast("Please fill in all required fields.", "err"); return; }
       const emailEl = form.querySelector("[name=email]");
       if (!emailEl.checkValidity()) { emailEl.focus(); toast("Please enter a valid e-mail address.", "err"); return; }
       if (!socialOk(fd.get("social_link"))) { toast("Please enter a valid Instagram or Facebook link, or leave it empty.", "err"); return; }
