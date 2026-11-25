@@ -17,8 +17,25 @@
     .form .link-btn { display: block; background: none; border: 0; color: #fff; font: inherit; font-size: .95rem; cursor: pointer; padding: 0; margin: -.3rem 0 .9rem; }
     .form select:invalid { color: rgba(34,58,92,.6); }
     .form select option { color: var(--navy); }
+    .form .time-field { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; padding: .6rem .7rem; border-radius: 6px; background: #fff; color: var(--navy); font-size: .95rem; cursor: pointer; }
+    .form .time-field svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .form .time-field .empty { color: rgba(34,58,92,.6); }
+    .form .row2 { position: relative; }
+    .time-pop { position: absolute; z-index: 50; top: calc(100% - .5rem); left: 0; right: 0; display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; padding: .8rem; border-radius: 10px; background: #fff; color: var(--navy); box-shadow: 0 10px 30px rgba(0,0,0,.18); font-size: .95rem; }
+    .time-pop .tclock { width: 120px; height: 120px; flex-shrink: 0; cursor: pointer; }
+    .time-pop .face { fill: #f3f5f8; stroke: rgba(34,58,92,.25); }
+    .time-pop text { font-size: 11px; fill: var(--navy); }
+    .time-pop .hh { stroke: var(--navy); stroke-width: 4; stroke-linecap: round; transition: transform .25s; }
+    .time-pop .mh { stroke: #b48ad6; stroke-width: 2.5; stroke-linecap: round; transition: transform .25s; }
+    .time-pop .dot { fill: var(--navy); }
+    .time-pop .tcols { display: flex; gap: .4rem; flex: 1; min-width: 180px; }
+    .time-pop .tcol { flex: 1; height: 150px; overflow-y: auto; border-radius: 6px; background: #f3f5f8; scrollbar-width: thin; }
+    .time-pop .tcol button { display: block; width: 100%; border: 0; background: none; padding: .35rem 0; font: inherit; font-size: .95rem; color: var(--navy); cursor: pointer; }
+    .time-pop .tcol button:hover { background: rgba(34,58,92,.08); }
+    .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
+    .time-pop .tdone { margin-left: auto; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795649192" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795649441" />
 </head>
 <body>
   <main class="page">
@@ -56,8 +73,8 @@
       </label>
       <div class="toggle-content hidden" id="c_b2b"><input type="text" name="b2b" placeholder="B2B (artist name)" maxlength="200"></div>
       <div class="row2">
-        <select data-time="start" required aria-label="Set starts"><option value="" disabled selected>Set starts</option><option value="0">12:00 AM</option><option value="15">12:15 AM</option><option value="30">12:30 AM</option><option value="45">12:45 AM</option><option value="60">1:00 AM</option><option value="75">1:15 AM</option><option value="90">1:30 AM</option><option value="105">1:45 AM</option><option value="120">2:00 AM</option><option value="135">2:15 AM</option><option value="150">2:30 AM</option><option value="165">2:45 AM</option><option value="180">3:00 AM</option><option value="195">3:15 AM</option><option value="210">3:30 AM</option><option value="225">3:45 AM</option><option value="240">4:00 AM</option><option value="255">4:15 AM</option><option value="270">4:30 AM</option><option value="285">4:45 AM</option><option value="300">5:00 AM</option><option value="315">5:15 AM</option><option value="330">5:30 AM</option><option value="345">5:45 AM</option><option value="360">6:00 AM</option><option value="375">6:15 AM</option><option value="390">6:30 AM</option><option value="405">6:45 AM</option><option value="420">7:00 AM</option><option value="435">7:15 AM</option><option value="450">7:30 AM</option><option value="465">7:45 AM</option><option value="480">8:00 AM</option><option value="495">8:15 AM</option><option value="510">8:30 AM</option><option value="525">8:45 AM</option><option value="540">9:00 AM</option><option value="555">9:15 AM</option><option value="570">9:30 AM</option><option value="585">9:45 AM</option><option value="600">10:00 AM</option><option value="615">10:15 AM</option><option value="630">10:30 AM</option><option value="645">10:45 AM</option><option value="660">11:00 AM</option><option value="675">11:15 AM</option><option value="690">11:30 AM</option><option value="705">11:45 AM</option><option value="720">12:00 PM</option><option value="735">12:15 PM</option><option value="750">12:30 PM</option><option value="765">12:45 PM</option><option value="780">1:00 PM</option><option value="795">1:15 PM</option><option value="810">1:30 PM</option><option value="825">1:45 PM</option><option value="840">2:00 PM</option><option value="855">2:15 PM</option><option value="870">2:30 PM</option><option value="885">2:45 PM</option><option value="900">3:00 PM</option><option value="915">3:15 PM</option><option value="930">3:30 PM</option><option value="945">3:45 PM</option><option value="960">4:00 PM</option><option value="975">4:15 PM</option><option value="990">4:30 PM</option><option value="1005">4:45 PM</option><option value="1020">5:00 PM</option><option value="1035">5:15 PM</option><option value="1050">5:30 PM</option><option value="1065">5:45 PM</option><option value="1080">6:00 PM</option><option value="1095">6:15 PM</option><option value="1110">6:30 PM</option><option value="1125">6:45 PM</option><option value="1140">7:00 PM</option><option value="1155">7:15 PM</option><option value="1170">7:30 PM</option><option value="1185">7:45 PM</option><option value="1200">8:00 PM</option><option value="1215">8:15 PM</option><option value="1230">8:30 PM</option><option value="1245">8:45 PM</option><option value="1260">9:00 PM</option><option value="1275">9:15 PM</option><option value="1290">9:30 PM</option><option value="1305">9:45 PM</option><option value="1320">10:00 PM</option><option value="1335">10:15 PM</option><option value="1350">10:30 PM</option><option value="1365">10:45 PM</option><option value="1380">11:00 PM</option><option value="1395">11:15 PM</option><option value="1410">11:30 PM</option><option value="1425">11:45 PM</option></select>
-        <select data-time="end" required aria-label="Set ends"><option value="" disabled selected>Set ends</option><option value="0">12:00 AM</option><option value="15">12:15 AM</option><option value="30">12:30 AM</option><option value="45">12:45 AM</option><option value="60">1:00 AM</option><option value="75">1:15 AM</option><option value="90">1:30 AM</option><option value="105">1:45 AM</option><option value="120">2:00 AM</option><option value="135">2:15 AM</option><option value="150">2:30 AM</option><option value="165">2:45 AM</option><option value="180">3:00 AM</option><option value="195">3:15 AM</option><option value="210">3:30 AM</option><option value="225">3:45 AM</option><option value="240">4:00 AM</option><option value="255">4:15 AM</option><option value="270">4:30 AM</option><option value="285">4:45 AM</option><option value="300">5:00 AM</option><option value="315">5:15 AM</option><option value="330">5:30 AM</option><option value="345">5:45 AM</option><option value="360">6:00 AM</option><option value="375">6:15 AM</option><option value="390">6:30 AM</option><option value="405">6:45 AM</option><option value="420">7:00 AM</option><option value="435">7:15 AM</option><option value="450">7:30 AM</option><option value="465">7:45 AM</option><option value="480">8:00 AM</option><option value="495">8:15 AM</option><option value="510">8:30 AM</option><option value="525">8:45 AM</option><option value="540">9:00 AM</option><option value="555">9:15 AM</option><option value="570">9:30 AM</option><option value="585">9:45 AM</option><option value="600">10:00 AM</option><option value="615">10:15 AM</option><option value="630">10:30 AM</option><option value="645">10:45 AM</option><option value="660">11:00 AM</option><option value="675">11:15 AM</option><option value="690">11:30 AM</option><option value="705">11:45 AM</option><option value="720">12:00 PM</option><option value="735">12:15 PM</option><option value="750">12:30 PM</option><option value="765">12:45 PM</option><option value="780">1:00 PM</option><option value="795">1:15 PM</option><option value="810">1:30 PM</option><option value="825">1:45 PM</option><option value="840">2:00 PM</option><option value="855">2:15 PM</option><option value="870">2:30 PM</option><option value="885">2:45 PM</option><option value="900">3:00 PM</option><option value="915">3:15 PM</option><option value="930">3:30 PM</option><option value="945">3:45 PM</option><option value="960">4:00 PM</option><option value="975">4:15 PM</option><option value="990">4:30 PM</option><option value="1005">4:45 PM</option><option value="1020">5:00 PM</option><option value="1035">5:15 PM</option><option value="1050">5:30 PM</option><option value="1065">5:45 PM</option><option value="1080">6:00 PM</option><option value="1095">6:15 PM</option><option value="1110">6:30 PM</option><option value="1125">6:45 PM</option><option value="1140">7:00 PM</option><option value="1155">7:15 PM</option><option value="1170">7:30 PM</option><option value="1185">7:45 PM</option><option value="1200">8:00 PM</option><option value="1215">8:15 PM</option><option value="1230">8:30 PM</option><option value="1245">8:45 PM</option><option value="1260">9:00 PM</option><option value="1275">9:15 PM</option><option value="1290">9:30 PM</option><option value="1305">9:45 PM</option><option value="1320">10:00 PM</option><option value="1335">10:15 PM</option><option value="1350">10:30 PM</option><option value="1365">10:45 PM</option><option value="1380">11:00 PM</option><option value="1395">11:15 PM</option><option value="1410">11:30 PM</option><option value="1425">11:45 PM</option></select>
+        <div class="time-field" data-time="start" data-ph="Set starts" tabindex="0" role="button" aria-label="Set starts"></div>
+        <div class="time-field" data-time="end" data-ph="Set ends" tabindex="0" role="button" aria-label="Set ends"></div>
       </div>
       <input type="text" id="durOut" readonly tabindex="-1" placeholder="Duration (calculated automatically)" />
       <input type="hidden" name="perf_time" />
@@ -95,8 +112,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795649192"></script>
-  <script src="assets/common.js?v=1795649192"></script>
+  <script src="assets/config.js?v=1795649441"></script>
+  <script src="assets/common.js?v=1795649441"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -170,11 +187,69 @@
     const readDates = () => [...new Set([...dateList.querySelectorAll("input")].map(i => i.value).filter(Boolean))].sort();
 
     // ----- horaires AM/PM -----
-    const readTime = (k) => {
-      const sel = document.querySelector(`select[data-time="${k}"]`);
-      if (!sel.value) return null;
-      return { label: sel.selectedOptions[0].text, min: +sel.value };
+    // ----- sélecteur d'heure : heures 1-12, minutes 00-59, AM/PM + petite horloge -----
+    const CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+    const times = {};
+    const timeLabel = (t) => `${t.h}:${String(t.m).padStart(2, "0")} ${t.ap}`;
+    const readTime = (k) => { const t = times[k]; return t ? { label: timeLabel(t), min: ((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m } : null; };
+    let openPop = null;
+    const closePop = () => { if (openPop) { openPop.remove(); openPop = null; } };
+    document.addEventListener("click", (e) => { if (openPop && !e.target.closest(".time-pop, .time-field")) closePop(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+    const paintField = (f) => {
+      const t = times[f.dataset.time];
+      f.innerHTML = `${CLOCK}<span class="${t ? "" : "empty"}">${t ? timeLabel(t) : f.dataset.ph}</span>`;
     };
+    document.querySelectorAll(".time-field").forEach((f) => {
+      paintField(f);
+      const open = () => {
+        if (openPop?.dataset.for === f.dataset.time) return closePop();
+        closePop();
+        const k = f.dataset.time;
+        const t = times[k] || { h: k === "start" ? 10 : 12, m: 0, ap: k === "start" ? "PM" : "AM" };
+        const pop = document.createElement("div");
+        pop.className = "time-pop"; pop.dataset.for = k;
+        const col = (name, vals, fmt) => `<div class="tcol" data-col="${name}">${vals.map(v => `<button type="button" data-v="${v}">${fmt(v)}</button>`).join("")}</div>`;
+        pop.innerHTML = `
+          <svg class="tclock" viewBox="0 0 120 120" aria-label="Clock — click to set the hour">
+            <circle cx="60" cy="60" r="56" class="face"/>
+            ${[...Array(12)].map((_, i) => { const a = (i + 1) * Math.PI / 6; return `<text x="${60 + 44 * Math.sin(a)}" y="${60 - 44 * Math.cos(a) + 4}" text-anchor="middle">${i + 1}</text>`; }).join("")}
+            <line class="hh" x1="60" y1="60" x2="60" y2="32"/><line class="mh" x1="60" y1="60" x2="60" y2="18"/><circle cx="60" cy="60" r="3" class="dot"/>
+          </svg>
+          <div class="tcols">
+            ${col("h", [1,2,3,4,5,6,7,8,9,10,11,12], v => v)}
+            ${col("m", [...Array(60).keys()], v => String(v).padStart(2, "0"))}
+            ${col("ap", ["AM", "PM"], v => v)}
+          </div>
+          <button type="button" class="tdone">OK</button>`;
+        f.after(pop); openPop = pop;
+        const sync = (scroll) => {
+          times[k] = { ...t };
+          pop.querySelectorAll(".tcol").forEach(c => c.querySelectorAll("button").forEach(b => {
+            const on = String(t[c.dataset.col]) === b.dataset.v;
+            b.classList.toggle("on", on);
+            if (on && scroll) c.scrollTop = b.offsetTop - c.clientHeight / 2 + b.offsetHeight / 2;
+          }));
+          const ha = ((t.h % 12) + t.m / 60) * 30, ma = t.m * 6;
+          pop.querySelector(".hh").setAttribute("transform", `rotate(${ha} 60 60)`);
+          pop.querySelector(".mh").setAttribute("transform", `rotate(${ma} 60 60)`);
+          paintField(f); updateDuration();
+        };
+        pop.querySelectorAll(".tcol").forEach(c => c.addEventListener("click", (e) => {
+          const b = e.target.closest("button"); if (!b) return;
+          const v = b.dataset.v; t[c.dataset.col] = c.dataset.col === "ap" ? v : +v; sync(false);
+        }));
+        pop.querySelector(".tclock").addEventListener("click", (e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
+          let h = Math.round(((Math.atan2(x, -y) * 180 / Math.PI + 360) % 360) / 30); t.h = h === 0 ? 12 : h; sync(true);
+        });
+        pop.querySelector(".tdone").onclick = closePop;
+        sync(true);
+      };
+      f.addEventListener("click", open);
+      f.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    });
     const duration = () => {
       const a = readTime("start"), b = readTime("end");
       if (!a || !b) return null;
@@ -182,10 +257,10 @@
       return d;
     };
     const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
-    document.querySelectorAll("select[data-time]").forEach(s => s.addEventListener("change", () => {
+    function updateDuration() {
       const d = duration();
       document.getElementById("durOut").value = d ? "Duration: " + fmtDur(d) : "";
-    }));
+    }
 
     const socialOk = (u) => !u || /^(https?:\/\/)?(www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)\/\S+$/i.test(u.trim());
 
