@@ -19,6 +19,8 @@
     .form select option { color: var(--navy); }
     .form .time-field { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; padding: .6rem .7rem; border-radius: 6px; background: #fff; color: var(--navy); font-size: .95rem; cursor: pointer; }
     .form .time-field svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .form .perf .toggle-line { margin: 0 0 .9rem; }
+    .form #addPerf { margin: .45rem 0 .9rem; }
     .form .perf + .perf { border-top: 1px solid rgba(255,255,255,.35); padding-top: .9rem; }
     .form .time-field .flag { width: 16px; text-align: center; font-size: 1rem; line-height: 1; }
     .time-pop .csearch { margin-bottom: .4rem; background: #f3f5f8; }
@@ -38,7 +40,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795650547" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795650623" />
 </head>
 <body>
   <main class="page">
@@ -104,8 +106,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795650547"></script>
-  <script src="assets/common.js?v=1795650547"></script>
+  <script src="assets/config.js?v=1795650623"></script>
+  <script src="assets/common.js?v=1795650623"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
