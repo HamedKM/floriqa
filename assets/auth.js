@@ -1,5 +1,5 @@
 // Floriqa — sign-in shared by the Artist panel and the Admin panel
-// 1) e-mail  2) unknown → blocked | new → 6-digit code → create password | existing → password
+// 1) e-mail  2) unknown → blocked | new → e-mail code → create password | existing → password
 (function () {
   const { sb, esc, toast } = window.Floriqa;
 
@@ -51,7 +51,7 @@
       const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
       if (error) return toast(/rate|seconds/i.test(error.message) ? "Please wait a minute before asking for a new code." : error.message, "err");
       step(`
-        <p class="muted" style="margin-bottom:.8rem">${reset ? "To reset your password, enter" : "First sign-in: enter"} the 6-digit code we just sent to <b>${esc(email)}</b>.</p>
+        <p class="muted" style="margin-bottom:.8rem">${reset ? "To reset your password, enter" : "First sign-in: enter"} the code we just sent to <b>${esc(email)}</b>.</p>
         <form id="fCode">
           <label class="field"><span>Code</span><input type="text" name="code" required inputmode="numeric" autocomplete="one-time-code" maxlength="8" style="letter-spacing:.4em;font-size:1.3rem"></label>
           <button class="btn primary" type="submit">Verify</button>
