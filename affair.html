@@ -19,7 +19,7 @@
     .form select option { color: var(--navy); }
     .form .time-field { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; padding: .6rem .7rem; border-radius: 6px; background: #fff; color: var(--navy); font-size: .95rem; cursor: pointer; }
     .form .time-field svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .form .time-field.static { cursor: default; }
+    .form .perf + .perf { border-top: 1px solid rgba(255,255,255,.35); padding-top: .9rem; }
     .form .time-field .flag { width: 16px; text-align: center; font-size: 1rem; line-height: 1; }
     .time-pop .csearch { margin-bottom: .4rem; background: #f3f5f8; }
     .time-pop .clist { max-height: 220px; overflow-y: auto; }
@@ -38,7 +38,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795649975" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795650399" />
 </head>
 <body>
   <main class="page">
@@ -59,9 +59,6 @@
       <h3>EVENT DETAILS</h3>
       <input type="text" name="event" placeholder="Event" required maxlength="200" />
       <input type="text" name="venue" placeholder="Venue" required maxlength="200" />
-      <div id="dateList"></div>
-      <button type="button" class="link-btn" id="addDate">+ Add another date</button>
-      <input type="hidden" name="dates" />
       <input type="text" name="lineup" placeholder="Confirmed line-up" required maxlength="500" />
       <div class="row2">
         <div class="tpick"><div class="time-field" id="countryField" tabindex="0" role="button" aria-label="Country"></div>
@@ -71,18 +68,9 @@
       <input type="url" name="social_link" placeholder="Instagram or Facebook link (optional)" maxlength="300" />
 
       <h3>PERFORMANCE</h3>
-      <label class="toggle-line off" data-for="b2b">
-        <span class="switch"><input type="checkbox" id="t_b2b"><span class="slider"></span></span>
-        <span class="title">B2B</span>
-      </label>
-      <div class="toggle-content hidden" id="c_b2b"><input type="text" name="b2b" placeholder="B2B (artist name)" maxlength="200"></div>
-      <div class="row2">
-        <div class="tpick"><div class="time-field" data-time="start" data-ph="Set starts" tabindex="0" role="button" aria-label="Set starts"></div></div>
-        <div class="tpick"><div class="time-field" data-time="end" data-ph="Set ends" tabindex="0" role="button" aria-label="Set ends"></div></div>
-      </div>
-      <div class="time-field static" id="durOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 5 10 7 10 18M17 3c0 5-10 7-10 18"/></svg><span class="empty">Duration (calculated automatically)</span></div>
-      <input type="hidden" name="perf_time" />
-      <input type="hidden" name="duration" />
+      <div id="perfList"></div>
+      <button type="button" class="link-btn" id="addPerf">+ Add another performance in the same event</button>
+      <input type="hidden" name="dates" /><input type="hidden" name="perf_time" /><input type="hidden" name="duration" /><input type="hidden" name="b2b" />
 
       <h3>OFFER DETAILS</h3>
       <input type="text" name="fee" placeholder="Net fee offer in €" required maxlength="50" />
@@ -116,8 +104,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795649975"></script>
-  <script src="assets/common.js?v=1795649975"></script>
+  <script src="assets/config.js?v=1795650399"></script>
+  <script src="assets/common.js?v=1795650399"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -192,115 +180,117 @@
       field.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     })();
 
-    // ----- dates -----
-    const dateList = document.getElementById("dateList");
+    // ----- performances (date, horaires, B2B) — répétables -----
     const today = new Date(); today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
     const minDate = today.toISOString().slice(0, 10);
-    const addDate = () => {
-      const row = document.createElement("div");
-      row.className = "date-field";
-      row.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-        <span class="dtext empty">Performance date</span>
-        <button type="button" class="del" title="Remove this date" aria-label="Remove this date">×</button>
-        <input type="date" min="${minDate}" tabindex="-1" aria-label="Performance date">`;
-      const inp = row.querySelector("input"), txt = row.querySelector(".dtext");
-      const paint = () => { txt.textContent = inp.value ? fmtDay(inp.value) : "Performance date"; txt.classList.toggle("empty", !inp.value); };
-      inp.addEventListener("change", paint);
-      row.addEventListener("click", (e) => {
-        if (e.target.closest(".del")) return;
-        try { inp.showPicker(); } catch { inp.style.pointerEvents = "auto"; inp.focus(); inp.click(); }
-      });
-      row.querySelector(".del").onclick = () => {
-        if (dateList.children.length > 1) row.remove(); else { inp.value = ""; paint(); }
-      };
-      dateList.appendChild(row);
-    };
-    addDate();
-    document.getElementById("addDate").onclick = addDate;
     const fmtDay = (v) => { const [y, m, d] = v.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); };
-    const readDates = () => [...new Set([...dateList.querySelectorAll("input")].map(i => i.value).filter(Boolean))].sort();
-
-    // ----- horaires AM/PM -----
-    // ----- sélecteur d'heure : heures 1-12, minutes 00-59, AM/PM + petite horloge -----
+    const CAL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`;
     const CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
-    const times = {};
+    const DATE_PH = "Artist's performance date";
+    const toMin = (t) => ((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m;
     const timeLabel = (t) => `${t.h}:${String(t.m).padStart(2, "0")} ${t.ap}`;
-    const shift3h = (t) => { const x = (((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m + 180) % 1440; const H = Math.floor(x / 60);
-      return { h: H % 12 || 12, m: x % 60, ap: H < 12 ? "AM" : "PM" }; };
-    const readTime = (k) => { const t = times[k]; return t ? { label: timeLabel(t), min: ((t.h % 12) + (t.ap === "PM" ? 12 : 0)) * 60 + t.m } : null; };
+    const shift3h = (t) => { const x = (toMin(t) + 180) % 1440; const H = Math.floor(x / 60); return { h: H % 12 || 12, m: x % 60, ap: H < 12 ? "AM" : "PM" }; };
+    const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
+
     let openPop = null;
     const closePop = () => { if (openPop) { openPop.remove(); openPop = null; } };
     document.addEventListener("click", (e) => { if (openPop && !e.target.closest(".time-pop, .time-field")) closePop(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
-    const paintField = (f) => {
-      const t = times[f.dataset.time];
-      f.innerHTML = `${CLOCK}<span class="${t ? "" : "empty"}">${t ? timeLabel(t) : f.dataset.ph}</span>`;
-    };
-    document.querySelectorAll(".time-field[data-time]").forEach((f) => {
-      paintField(f);
-      const open = () => {
-        if (openPop?.dataset.for === f.dataset.time) return closePop();
-        closePop();
-        const k = f.dataset.time;
-        // par défaut : début 1:00 AM, fin = début + 3 h (4:00 AM)
-        const t = times[k] || (k === "start" ? { h: 1, m: 0, ap: "AM" } : { ...shift3h(times.start || { h: 1, m: 0, ap: "AM" }), auto: true });
-        const pop = document.createElement("div");
-        pop.className = "time-pop"; pop.dataset.for = k;
-        const col = (name, vals, fmt) => `<div class="tcol" data-col="${name}">${vals.map(v => `<button type="button" data-v="${v}">${fmt(v)}</button>`).join("")}</div>`;
-        pop.innerHTML = `
-          <div class="tcols">
-            ${col("h", [1,2,3,4,5,6,7,8,9,10,11,12], v => v)}
-            ${col("m", [...Array(60).keys()], v => String(v).padStart(2, "0"))}
-            ${col("ap", ["AM", "PM"], v => v)}
-          </div>
-          <button type="button" class="tdone">OK</button>`;
-        f.after(pop); openPop = pop;
-        const sync = (scroll) => {
-          times[k] = { ...t };
-          // la fin suit le début (+3 h) tant qu'on ne l'a pas réglée soi-même
-          if (k === "start" && times.end?.auto) times.end = { ...shift3h(times.start), auto: true };
-          document.querySelectorAll(".time-field[data-time]").forEach(paintField);
-          pop.querySelectorAll(".tcol").forEach(c => c.querySelectorAll("button").forEach(b => {
-            const on = String(t[c.dataset.col]) === b.dataset.v;
-            b.classList.toggle("on", on);
-            if (on && scroll) c.scrollTop = b.offsetTop - c.clientHeight / 2 + b.offsetHeight / 2;
-          }));
-          paintField(f); updateDuration();
-        };
-        pop.querySelectorAll(".tcol").forEach(c => c.addEventListener("click", (e) => {
-          const b = e.target.closest("button"); if (!b) return;
-          const v = b.dataset.v; t[c.dataset.col] = c.dataset.col === "ap" ? v : +v; delete t.auto; sync(false);
-        }));
-        pop.querySelector(".tdone").onclick = closePop;
-        sync(true);
+
+    const perfList = document.getElementById("perfList");
+    const perfs = [];
+    const addPerf = () => {
+      const blk = { times: {}, el: document.createElement("div") };
+      blk.el.className = "perf";
+      blk.el.innerHTML = `
+        <div class="date-field">${CAL}<span class="dtext empty">${DATE_PH}</span>
+          <button type="button" class="del" title="Remove" aria-label="Remove">×</button>
+          <input type="date" min="${minDate}" tabindex="-1" aria-label="${DATE_PH}"></div>
+        <div class="row2">
+          <div class="tpick"><div class="time-field" data-time="start" data-ph="Set starts" tabindex="0" role="button" aria-label="Set starts"></div></div>
+          <div class="tpick"><div class="time-field" data-time="end" data-ph="Set ends" tabindex="0" role="button" aria-label="Set ends"></div></div>
+        </div>
+        <label class="toggle-line off">
+          <span class="switch"><input type="checkbox" class="b2bt"><span class="slider"></span></span>
+          <span class="title">B2B</span>
+        </label>
+        <div class="toggle-content hidden"><input type="text" class="b2bn" placeholder="B2B (artist name)" maxlength="200"></div>`;
+      // date
+      const df = blk.el.querySelector(".date-field"), inp = df.querySelector("input"), txt = df.querySelector(".dtext");
+      blk.date = () => inp.value;
+      const paintDate = () => { txt.textContent = inp.value ? fmtDay(inp.value) : DATE_PH; txt.classList.toggle("empty", !inp.value); };
+      inp.addEventListener("change", paintDate);
+      df.addEventListener("click", (e) => {
+        if (e.target.closest(".del")) return;
+        try { inp.showPicker(); } catch { inp.style.pointerEvents = "auto"; inp.focus(); inp.click(); }
+      });
+      df.querySelector(".del").onclick = () => {
+        if (perfs.length > 1) { blk.el.remove(); perfs.splice(perfs.indexOf(blk), 1); } else { inp.value = ""; paintDate(); }
       };
-      f.addEventListener("click", open);
-      f.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
-    });
-    const duration = () => {
-      const a = readTime("start"), b = readTime("end");
-      if (!a || !b) return null;
-      let d = b.min - a.min; if (d <= 0) d += 24 * 60;
-      return d;
+      // B2B
+      const tg = blk.el.querySelector(".toggle-line"), box = tg.querySelector(".b2bt"), content = blk.el.querySelector(".toggle-content");
+      box.addEventListener("change", () => { tg.classList.toggle("off", !box.checked); content.classList.toggle("hidden", !box.checked); });
+      blk.b2b = () => box.checked ? content.querySelector("input").value.trim() : "";
+      // horaires : début 1:00 AM, fin = début + 3 h tant qu'on ne l'a pas réglée soi-même
+      const paintTime = (f) => { const t = blk.times[f.dataset.time]; f.innerHTML = `${CLOCK}<span class="${t ? "" : "empty"}">${t ? timeLabel(t) : f.dataset.ph}</span>`; };
+      const fields = [...blk.el.querySelectorAll(".time-field")];
+      fields.forEach((f) => {
+        paintTime(f);
+        const open = () => {
+          if (openPop?._field === f) return closePop();
+          closePop();
+          const k = f.dataset.time;
+          const t = blk.times[k] || (k === "start" ? { h: 1, m: 0, ap: "AM" } : { ...shift3h(blk.times.start || { h: 1, m: 0, ap: "AM" }), auto: true });
+          const pop = document.createElement("div");
+          pop.className = "time-pop"; pop._field = f;
+          const col = (name, vals, fmt) => `<div class="tcol" data-col="${name}">${vals.map(v => `<button type="button" data-v="${v}">${fmt(v)}</button>`).join("")}</div>`;
+          pop.innerHTML = `<div class="tcols">${col("h", [1,2,3,4,5,6,7,8,9,10,11,12], v => v)}${col("m", [...Array(60).keys()], v => String(v).padStart(2, "0"))}${col("ap", ["AM", "PM"], v => v)}</div>
+            <button type="button" class="tdone">OK</button>`;
+          f.after(pop); openPop = pop;
+          const sync = (scroll) => {
+            blk.times[k] = { ...t };
+            if (k === "start" && blk.times.end?.auto) blk.times.end = { ...shift3h(blk.times.start), auto: true };
+            fields.forEach(paintTime);
+            pop.querySelectorAll(".tcol").forEach(c => c.querySelectorAll("button").forEach(b => {
+              const on = String(t[c.dataset.col]) === b.dataset.v;
+              b.classList.toggle("on", on);
+              if (on && scroll) c.scrollTop = b.offsetTop - c.clientHeight / 2 + b.offsetHeight / 2;
+            }));
+          };
+          pop.querySelectorAll(".tcol").forEach(c => c.addEventListener("click", (e) => {
+            const b = e.target.closest("button"); if (!b) return;
+            t[c.dataset.col] = c.dataset.col === "ap" ? b.dataset.v : +b.dataset.v; delete t.auto; sync(false);
+          }));
+          pop.querySelector(".tdone").onclick = closePop;
+          sync(true);
+        };
+        f.addEventListener("click", open);
+        f.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+      });
+      perfs.push(blk); perfList.appendChild(blk.el);
     };
-    const fmtDur = (d) => `${Math.floor(d / 60)} h${d % 60 ? " " + String(d % 60).padStart(2, "0") : ""}`;
-    function updateDuration() {
-      const d = duration();
-      const sp = document.querySelector("#durOut span");
-      sp.textContent = d ? "Duration: " + fmtDur(d) : "Duration (calculated automatically)"; sp.classList.toggle("empty", !d);
-    }
+    addPerf();
+    document.getElementById("addPerf").onclick = addPerf;
 
     const socialOk = (u) => !u || /^(https?:\/\/)?(www\.|m\.)?(instagram\.com|facebook\.com|fb\.com)\/\S+$/i.test(u.trim());
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const days = readDates();
-      if (!days.length) { dateList.querySelector(".date-field").scrollIntoView({ block: "center" }); toast("Please choose the performance date.", "err"); return; }
-      const st = readTime("start"), en = readTime("end");
-      if (!st || !en) { toast("Please choose the start and end time of the set.", "err"); return; }
-      form.dates.value = days.map(fmtDay).join(", ");
-      form.perf_time.value = `${st.label} – ${en.label}`;
-      form.duration.value = fmtDur(duration());
+      // performances -> champs de la demande
+      const rows = [];
+      for (const p of perfs) {
+        const d = p.date(), st = p.times.start, en = p.times.end;
+        if (!d) { p.el.scrollIntoView({ block: "center" }); toast("Please choose the artist's performance date.", "err"); return; }
+        if (!st || !en) { p.el.scrollIntoView({ block: "center" }); toast("Please choose when the set starts and ends.", "err"); return; }
+        let dur = toMin(en) - toMin(st); if (dur <= 0) dur += 1440;
+        rows.push({ d, day: fmtDay(d), time: `${timeLabel(st)} – ${timeLabel(en)}`, dur: fmtDur(dur), b2b: p.b2b() });
+      }
+      rows.sort((a, b) => a.d.localeCompare(b.d));
+      const multi = rows.length > 1;
+      form.dates.value = [...new Set(rows.map(r => r.day))].join(", ");
+      form.perf_time.value = rows.map(r => multi ? `${r.day}: ${r.time}` : r.time).join("; ");
+      form.duration.value = rows.map(r => multi ? `${r.day}: ${r.dur}` : r.dur).join("; ");
+      form.b2b.value = rows.filter(r => r.b2b).map(r => multi ? `${r.day}: ${r.b2b}` : r.b2b).join("; ");
       const fd = new FormData(form);
       if (fd.get("website")) return; // robot
       const missing = [...form.querySelectorAll("[required]")].find(i => !String(i.value).trim());
@@ -316,7 +306,7 @@
         artist_id: select.selectedOptions[0]?.dataset.id || null,
         artist_name: v("artist_name"), organization: v("organization"), promoter: v("promoter"), phone: v("phone"), email: v("email"),
         event: v("event"), venue: v("venue"), dates: v("dates"), lineup: v("lineup"), country: v("country"), city: v("city"),
-        social_link: v("social_link"), b2b: t("b2b") ? v("b2b") : null, duration: v("duration"), perf_time: v("perf_time"), fee: v("fee"),
+        social_link: v("social_link"), b2b: v("b2b"), duration: v("duration"), perf_time: v("perf_time"), fee: v("fee"),
         transport: t("transport"), transport_details: t("transport") ? v("transport_details") : null,
         accommodation: t("accommodation"), accommodation_details: t("accommodation") ? v("accommodation_details") : null,
         hospitality: t("hospitality"), hospitality_details: t("hospitality") ? v("hospitality_details") : null,
