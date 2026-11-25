@@ -1,5 +1,5 @@
 // Floriqa — Room d'échange privée (projets, fichiers audio / DAW, commentaires)
-const { sb, esc, buildChrome, toast, fmtDate, fmtSize } = Floriqa;
+const { sb, esc, buildChrome, toast, fmtDate, fmtSize, mail } = Floriqa;
 buildChrome({ active: "Room", video: false });
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -79,6 +79,7 @@ async function boot() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session || session.user.is_anonymous) return show("auth");
   user = session.user;
+  await sb.rpc("floriqa_claim_invite");
   const { data: m } = await sb.from("floriqa_members").select("*").eq("user_id", user.id).maybeSingle();
   if (!m) {
     const { data: r } = await sb.from("floriqa_access_requests").select("user_id").eq("user_id", user.id).maybeSingle();
@@ -98,6 +99,8 @@ async function boot() {
   show("room");
   const { data: mems } = await sb.from("floriqa_members").select("user_id,display_name");
   members = Object.fromEntries((mems || []).map((x) => [x.user_id, x.display_name]));
+  $("#tabBookings").classList.toggle("hidden", !m.artist_id);
+  if (m.artist_id) loadMyBookings();
   await loadProjects();
   const want = new URLSearchParams(location.search).get("p");
   if (want && projects.some((p) => p.id === want)) openProject(want);
@@ -294,3 +297,54 @@ async function openProject(id) {
 }
 
 boot();
+
+// ---------- onglets de la Room ----------
+$$("[data-rt]").forEach((t) => t.addEventListener("click", () => {
+  $$("[data-rt]").forEach((x) => x.classList.toggle("active", x === t));
+  $$("[data-rp]").forEach((p) => (p.style.display = p.dataset.rp === t.dataset.rt ? "" : "none"));
+}));
+
+// ---------- bookings de l'artiste ----------
+// L'artiste voit tout l'échange. Ce qu'il écrit est une NOTE INTERNE : seul son manager la lit.
+const BSTATUS = { new: "Nouvelle", in_progress: "En cours", accepted: "Acceptée", declined: "Refusée", archived: "Archivée" };
+let myBookings = [];
+async function loadMyBookings() {
+  const { data } = await sb.from("floriqa_bookings")
+    .select("id,created_at,status,artist_name,promoter,organization,event,venue,dates,city,country,fee,duration,perf_time,b2b,lineup")
+    .eq("artist_id", me.artist_id).order("created_at", { ascending: false });
+  myBookings = data || [];
+  $("#tabBookings").textContent = `Mes bookings${myBookings.length ? " (" + myBookings.length + ")" : ""}`;
+  $("#bList").innerHTML = myBookings.length ? myBookings.map((b) => `
+    <div class="list-item" data-id="${b.id}"><div><b>${esc(b.event)}</b><div class="muted">${esc(b.city)} · ${esc(b.dates)}</div></div>
+      <span class="badge ${b.status}">${BSTATUS[b.status]}</span></div>`).join("") : `<p class="muted">Aucune demande de booking pour l'instant.</p>`;
+  $$("#bList .list-item").forEach((el) => el.addEventListener("click", () => openBooking(el.dataset.id)));
+}
+async function openBooking(id) {
+  $$("#bList .list-item").forEach((x) => x.classList.toggle("sel", x.dataset.id === id));
+  const b = myBookings.find((x) => x.id === id);
+  const { data: msgs } = await sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at");
+  const LBL = { promoter: "Promoteur", manager: "Manager", artist: "Ta note interne" };
+  $("#bView").innerHTML = `
+    <div class="toolbar"><h3 class="grow">${esc(b.event)}</h3><span class="badge ${b.status}">${BSTATUS[b.status]}</span></div>
+    <p class="muted">${esc(b.organization)} · ${esc(b.venue)}, ${esc(b.city)} (${esc(b.country)}) · ${esc(b.dates)} · ${esc(b.perf_time)} · ${esc(b.duration)} h · cachet ${esc(b.fee)} €${b.b2b ? " · B2B " + esc(b.b2b) : ""}</p>
+    <hr class="sep">
+    ${(msgs || []).map((m) => `
+      <div class="comment" style="${m.author_kind === "artist" ? "border-left:3px solid #f9e6b3;background:rgba(249,230,179,.08)" : m.author_kind === "manager" ? "border-left:3px solid #d3ecf7" : ""}">
+        <div class="meta"><span><b>${esc(m.author_name || "")}</b> · ${LBL[m.author_kind]}</span><span>${fmtDate(m.created_at)}</span></div>
+        <div class="body">${esc(m.body)}</div></div>`).join("") || `<p class="muted">Pas encore d'échange avec le promoteur.</p>`}
+    <form id="noteForm" style="margin-top:.8rem">
+      <label class="field"><span>Écrire à ton manager — <b>le promoteur ne verra jamais ce message</b></span>
+        <textarea name="body" required placeholder="Ex. : OK pour la date, mais je préfère jouer après minuit…"></textarea></label>
+      <button class="btn primary" type="submit">Envoyer à mon manager</button>
+    </form>`;
+  $("#noteForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = e.target.body.value.trim(); if (!body) return;
+    const { data: m, error } = await sb.from("floriqa_messages").insert({
+      booking_id: id, author_kind: "artist", visibility: "internal", author: user.id, author_name: me.display_name, body,
+    }).select().single();
+    if (error) return toast("Erreur : " + error.message, "err");
+    mail({ type: "message", id: m.id });
+    toast("Note envoyée à ton manager."); openBooking(id);
+  });
+}

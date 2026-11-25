@@ -26,7 +26,7 @@
         <label class="field"><span>Un mot pour l'équipe (facultatif)</span><input type="text" name="message" maxlength="300"></label>
         <button class="btn primary" type="submit">Demander l'accès</button>
       </form>
-      <p class="muted" style="margin-top:1rem">La Room est un espace privé pour les artistes et l'équipe Floriqa. Chaque nouveau compte est validé par un admin.</p>
+      <p class="muted" style="margin-top:1rem">Espace privé des artistes et de l'équipe Floriqa. Si l'agence t'a donné accès, crée ton compte avec l'e-mail qu'elle a enregistré : tu entres directement.</p>
     </section>
 
     <!-- En attente -->
@@ -49,7 +49,15 @@
         <a class="btn hidden" id="adminLink" href="../admin/">Admin</a>
         <button class="btn" data-logout>Déconnexion</button>
       </div>
-      <div class="split">
+      <div class="tabs" id="roomTabs">
+        <button class="tab active" data-rt="projects">Projets</button>
+        <button class="tab hidden" data-rt="bookings" id="tabBookings">Mes bookings</button>
+      </div>
+      <div class="split" data-rp="bookings" style="display:none">
+        <aside><div id="bList"></div></aside>
+        <section id="bView" class="card"><p class="muted">Choisis une demande de booking à gauche.</p></section>
+      </div>
+      <div class="split" data-rp="projects">
         <aside>
           <button class="btn primary" id="newProject" style="width:100%;justify-content:center;margin-bottom:.8rem">+ Nouveau projet</button>
           <input type="text" id="pSearch" placeholder="Rechercher un projet" style="margin-bottom:.8rem">

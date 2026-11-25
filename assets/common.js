@@ -12,7 +12,6 @@
     ["Garden", "index.html"],
     ["Artists", "artists.html"],
     ["Affair", "affair.html"],
-    ["Room", "room/"],
   ];
 
   function buildChrome(opts = {}) {
@@ -71,5 +70,13 @@
   const fmtSize = (b) => (b == null ? "" : b > 1048576 ? (b / 1048576).toFixed(1) + " Mo" : Math.max(1, Math.round(b / 1024)) + " Ko");
   const fmtDate = (d) => new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-  window.Floriqa = { sb, esc, media, BASE, cfg, buildChrome, toast, fmtSize, fmtDate };
+  // envoi des e-mails des conversations (service "floriqa-mail")
+  async function mail(payload) {
+    try {
+      const { data, error } = await sb.functions.invoke("floriqa-mail", { body: payload });
+      return error ? { ok: false, error: error.message } : data;
+    } catch (e) { return { ok: false, error: String(e) }; }
+  }
+
+  window.Floriqa = { sb, esc, media, BASE, cfg, buildChrome, toast, fmtSize, fmtDate, mail };
 })();

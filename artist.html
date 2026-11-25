@@ -21,7 +21,7 @@
       const el = document.getElementById("content");
       const slug = new URLSearchParams(location.search).get("a");
       const { data: a } = await sb.from("floriqa_artists")
-        .select("id,slug,name,tagline,bio,photo_url,card_url,instagram, floriqa_tracks(title,audio_url,sort), floriqa_videos(title,video_url,vertical,sort)")
+        .select("id,slug,name,tagline,bio,photo_url,card_url,instagram,spotify,soundcloud,youtube,website, floriqa_tracks(title,audio_url,sort), floriqa_videos(title,video_url,vertical,sort), floriqa_artist_photos(url,caption,sort)")
         .eq("slug", slug || "").maybeSingle();
       if (!a) { el.innerHTML = `<div class="glass soon">Artist not found. <a href="artists.html">See all artists</a></div>`; return; }
       document.title = `${a.name} – Floriqa`;
@@ -29,6 +29,8 @@
       const tracks = (a.floriqa_tracks || []).sort(by);
       const vids = (a.floriqa_videos || []).sort(by);
       const vV = vids.filter(v => v.vertical), vH = vids.filter(v => !v.vertical);
+      const gallery = (a.floriqa_artist_photos || []).sort(by);
+      const links = [["Instagram", a.instagram], ["Spotify", a.spotify], ["SoundCloud", a.soundcloud], ["YouTube", a.youtube], ["Website", a.website]].filter(l => l[1]);
       const video = (v, cls) => `<div class="${cls}"><video controls preload="metadata" playsinline src="${esc(media(v.video_url))}"></video></div>`;
       const photo = a.photo_url || a.card_url;
       const book = `affair.html?artist=${encodeURIComponent(a.name)}`;
@@ -37,7 +39,7 @@
           <aside class="artist-side">
             ${photo ? `<div class="artist-photo"><img src="${esc(media(photo))}" alt="${esc(a.name)}"></div>` : ""}
             <a class="btn-glass" href="${book}">Book ${esc(a.name)} now</a>
-            ${a.instagram ? `<a class="btn-glass" style="margin-top:-.4rem" href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}
+            ${links.length ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:-.2rem 0 1rem">${links.map(([l, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener" style="padding:.35rem .8rem;border-radius:999px;background:rgba(255,255,255,.15);text-decoration:none;font-size:.85rem;font-weight:600">${l}</a>`).join("")}</div>` : ""}
             ${vV.map(v => video(v, "video-v")).join("")}
           </aside>
           <section>
@@ -45,7 +47,8 @@
             ${a.bio ? `<div class="artist-bio glass">${esc(a.bio)}</div>` : ""}
             ${vH.map(v => video(v, "video-h")).join("")}
             ${tracks.length ? `<div class="tracks glass">${tracks.map(t => `<div class="t"><strong>${esc(t.title)}</strong><audio controls preload="none" src="${esc(media(t.audio_url))}"></audio></div>`).join("")}</div>` : ""}
-            ${!tracks.length && !vids.length && !a.bio ? `<div class="glass soon">Music and videos coming soon.</div>` : ""}
+            ${gallery.length ? `<div class="glass" style="padding:1rem;margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem">${gallery.map(p => `<a href="${esc(media(p.url))}" target="_blank" style="aspect-ratio:1;border-radius:8px;overflow:hidden;display:block"><img loading="lazy" src="${esc(media(p.url))}" style="width:100%;height:100%;object-fit:cover" alt=""></a>`).join("")}</div>` : ""}
+            ${!tracks.length && !vids.length && !a.bio && !gallery.length ? `<div class="glass soon">Music and videos coming soon.</div>` : ""}
           </section>
         </div>`;
       // une seule lecture à la fois

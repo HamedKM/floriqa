@@ -73,7 +73,7 @@
 
     <div id="done" class="success glass hidden">
       <h2>THANK YOU</h2>
-      <p>Your booking request has been received. We'll get back to you by e-mail very soon.</p>
+      <p>Your booking request has been received. A confirmation has been sent to your e-mail address — simply reply to it to continue the conversation with our team.</p>
       <a class="btn-white" style="display:inline-block;text-decoration:none" href="artists.html">Back to artists</a>
     </div>
   </main>
@@ -82,7 +82,7 @@
   <script src="assets/config.js"></script>
   <script src="assets/common.js"></script>
   <script>
-    const { sb, cfg, buildChrome, toast } = Floriqa;
+    const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
 
     const form = document.getElementById("bookingForm");
@@ -90,8 +90,8 @@
     const wanted = new URLSearchParams(location.search).get("artist");
 
     (async () => {
-      const { data } = await sb.from("floriqa_artists").select("name").eq("published", true).order("sort").order("name");
-      (data || []).forEach(a => select.add(new Option(a.name, a.name)));
+      const { data } = await sb.from("floriqa_artists").select("id,name").eq("published", true).order("sort").order("name");
+      (data || []).forEach(a => { const o = new Option(a.name, a.name); o.dataset.id = a.id; select.add(o); });
       if (wanted) {
         const opt = [...select.options].find(o => o.value.toLowerCase() === wanted.toLowerCase());
         if (opt) opt.selected = true; else select.add(new Option(wanted, wanted, true, true));
@@ -122,6 +122,8 @@
       const t = (k) => document.getElementById("t_" + k).checked;
       const v = (k) => (fd.get(k) || "").toString().trim() || null;
       const row = {
+        id: crypto.randomUUID(),
+        artist_id: select.selectedOptions[0]?.dataset.id || null,
         artist_name: v("artist_name"), organization: v("organization"), promoter: v("promoter"), phone: v("phone"), email: v("email"),
         event: v("event"), venue: v("venue"), dates: v("dates"), lineup: v("lineup"), country: v("country"), city: v("city"),
         social_link: v("social_link"), b2b: t("b2b") ? v("b2b") : null, duration: v("duration"), perf_time: v("perf_time"), fee: v("fee"),
@@ -138,13 +140,8 @@
         toast("Sorry, the request could not be sent. Please try again.", "err");
         console.error(error); return;
       }
-      // alerte e-mail (facultative)
-      if (cfg.notifyEmail) {
-        fetch(`https://formsubmit.co/ajax/${encodeURIComponent(cfg.notifyEmail)}`, {
-          method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ _subject: `Floriqa – new booking: ${row.artist_name} @ ${row.event}`, _template: "table", _replyto: row.email, ...row }),
-        }).catch(() => {});
-      }
+      // e-mail de confirmation au promoteur + alerte au manager de l'artiste
+      Floriqa.mail({ type: "booking", id: row.id });
       form.classList.add("hidden");
       document.getElementById("done").classList.remove("hidden");
       window.scrollTo({ top: 0, behavior: "smooth" });

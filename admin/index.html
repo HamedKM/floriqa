@@ -77,8 +77,20 @@
       <!-- MEMBRES -->
       <div data-pane="members" class="hidden">
         <div class="card">
+          <h3>Donner accès à la Room</h3>
+          <p class="muted" style="margin:.3rem 0 1rem">Entre l'e-mail de la personne. Envoie-lui ensuite le lien de la Room : <b id="roomLink"></b> — elle crée son compte avec <u>cet e-mail</u> et entre directement.</p>
+          <form id="invForm" class="toolbar">
+            <input type="email" name="email" required placeholder="e-mail" style="max-width:260px">
+            <input type="text" name="name" placeholder="Nom (facultatif)" style="max-width:180px">
+            <select name="role" style="width:auto"><option value="artist">Artiste</option><option value="team">Équipe</option><option value="admin">Admin</option></select>
+            <select name="artist" id="invArtist" style="width:auto" title="Fiche artiste liée"></select>
+            <button class="btn primary" type="submit">Donner accès</button>
+          </form>
+          <div id="invList"></div>
+        </div>
+        <div class="card">
           <h3>Demandes d'accès</h3>
-          <p class="muted" style="margin:.3rem 0 1rem">Les artistes et l'équipe créent leur compte sur la page Room, puis tu les acceptes ici.</p>
+          <p class="muted" style="margin:.3rem 0 1rem">Personnes qui ont créé un compte sans invitation.</p>
           <div id="reqList"></div>
         </div>
         <div class="card">
