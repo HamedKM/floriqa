@@ -144,8 +144,9 @@ async function showBooking(id) {
     <div class="row2">
       <label class="field"><span>Status</span>
         <select id="bkStatus">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === b.status ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-      <label class="field"><span>Linked artist</span>
-        <select id="bkArtist"><option value="">—</option>${artists.filter((a) => myArtist(a.id)).map((a) => `<option value="${a.id}" ${a.id === b.artist_id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select></label>
+      ${b.artist_id ? `<div class="field"><span>Artist</span><b style="padding:.55rem 0">${esc(artist?.name || b.artist_name)}</b></div>`
+        : `<label class="field"><span>Link this request to an artist (not linked yet)</span>
+        <select id="bkArtist"><option value="">—</option>${artists.filter((a) => myArtist(a.id)).map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></label>`}
     </div>
     <div class="toolbar"><button class="btn" id="bkSave">Save</button><span class="grow"></span>${me.is_super ? `<button class="btn danger" id="bkDel">Delete</button>` : ""}</div>`;
 
@@ -183,7 +184,7 @@ async function showBooking(id) {
     showBooking(id);
   });
   $("#bkSave").onclick = async () => {
-    const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, artist_id: $("#bkArtist").value || null }).eq("id", id);
+    const { error } = await sb.from("floriqa_bookings").update({ status: $("#bkStatus").value, ...($("#bkArtist") ? { artist_id: $("#bkArtist").value || null } : {}) }).eq("id", id);
     if (error) return toast("Could not save.", "err");
     toast("Saved."); await loadBookings(); showBooking(id);
   };
