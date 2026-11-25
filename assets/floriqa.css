@@ -116,9 +116,13 @@ img { max-width: 100%; display: block; }
 /* ======================================================
    APPLICATION (admin + room)
    ====================================================== */
-body.app { background: radial-gradient(1200px 600px at 10% -10%, rgba(225,212,242,.16), transparent), radial-gradient(900px 500px at 100% 0%, rgba(211,236,247,.12), transparent), #0d0f14; min-height: 100vh; }
+body.app { background: transparent; min-height: 100vh; }
+/* habillage des panneaux : vidéo du site en négatif, assombrie pour la lisibilité */
+.video-bg.negative video { filter: invert(1); }
+.video-bg.negative .video-shade { background: rgba(8, 10, 16, .55); }
 .app-wrap { max-width: 1200px; margin: 0 auto; padding: 6.5rem 1.5rem 3rem; }
-.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius); padding: 1.2rem; }
+.card { background: rgba(14,16,22,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); border-radius: var(--radius); padding: 1.2rem; }
+body.app .list-item, body.app .file-row, body.app .stat, body.app .comment { background: rgba(14,16,22,.62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .card + .card { margin-top: 1rem; }
 .auth-box { max-width: 420px; margin: 2rem auto; }
 .auth-box h2 { margin-bottom: 1rem; }

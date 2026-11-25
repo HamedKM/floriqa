@@ -1,6 +1,6 @@
 // Floriqa — admin panel
 const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow, accountSettings } = Floriqa;
-buildChrome({ video: false });
+buildChrome({ negative: true });
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];

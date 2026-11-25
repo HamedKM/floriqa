@@ -18,7 +18,7 @@
     const here = opts.active || "";
     if (opts.video !== false) {
       const wrap = document.createElement("div");
-      wrap.className = "video-bg";
+      wrap.className = "video-bg" + (opts.negative ? " negative" : "");
       const mobile = window.matchMedia("(max-width: 767px)").matches;
       const src = BASE + (mobile ? "videos/garden-mobile-light.mp4" : "videos/garden-desktop-light.mp4");
       wrap.innerHTML = `<video autoplay loop muted playsinline poster="${BASE}videos/garden-poster.jpg"><source src="${src}" type="video/mp4"></video><div class="video-shade"></div>`;
