@@ -112,7 +112,8 @@ Deno.serve(async (req) => {
   // ---------- réponse e-mail du promoteur (webhook Resend "email.received") ----------
   if (body.type === "email.received") {
     const s = new URL(req.url).searchParams.get("s");
-    if (!INBOUND_SECRET || s !== INBOUND_SECRET) return json({ error: "auth" }, 401);
+    const secret = INBOUND_SECRET || (await db.from("floriqa_settings").select("value").eq("key", "inbound_secret").maybeSingle()).data?.value;
+    if (!secret || s !== secret) return json({ error: "auth" }, 401);
     const d = body.data || {};
     const toList = [].concat(d.to || []).join(" ");
     const token = toList.match(/booking\+([a-f0-9]{32})@/i)?.[1];
@@ -120,10 +121,11 @@ Deno.serve(async (req) => {
     const { data: b } = await db.from("floriqa_bookings").select("id,email").eq("reply_token", token.toLowerCase()).maybeSingle();
     if (!b) return json({ ok: true, ignored: "unknown thread" });
     // contenu complet du message
-    let raw = "";
+    let raw = "", fetchErr: string | null = null;
     if (RESEND && d.email_id) {
       const r = await fetch(`https://api.resend.com/emails/receiving/${d.email_id}`, { headers: { Authorization: `Bearer ${RESEND}` } });
       if (r.ok) { const e = await r.json(); raw = e.text || String(e.html || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""); }
+      else fetchErr = `${r.status} ${(await r.text()).slice(0, 250)}`;
     }
     // on retire la citation de l'ancien message
     const lines = String(raw).split(/\r?\n/);
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
     const text = (cut > 0 ? lines.slice(0, cut) : lines).join("\n").slice(0, 20000).trim() || "(message vide)";
     body.from = d.from;
     const { data: m } = await db.from("floriqa_messages").insert({
-      booking_id: b.id, author_kind: "promoter", visibility: "external", author_name: String(body.from || "Promoter").slice(0, 200), body: text, email_status: "none",
+      booking_id: b.id, author_kind: "promoter", visibility: "external", author_name: String(body.from || "Promoter").slice(0, 200), body: text, email_status: "none", email_error: fetchErr,
     }).select().single();
     const ctx = await loadBooking(b.id);
     if (ctx?.manager) await send(ctx.manager, `Re: ${ctx.subject}`, `Réponse du promoteur (${body.from}) :\n\n${text}\n\nRépondez depuis l'admin (pas depuis cet e-mail) : ${SITE}/admin/?b=${b.id}`, `no-reply@${DOMAIN}`, "Floriqa");
