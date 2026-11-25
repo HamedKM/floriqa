@@ -1,5 +1,5 @@
 // Floriqa — Artists panel (bookings, artist page edit requests, rooms)
-const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow } = Floriqa;
+const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow, accountSettings } = Floriqa;
 buildChrome({ video: false });
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -50,7 +50,7 @@ function selectArtist() {
   const isMember = artist?.kind === "member";
   $("#who").textContent = artist ? `${artist.person} · ${artist.kind === "member" ? "Artist" : "Team"}` : (me.admin_name || me.email) + " · Admin";
   // tabs: team = bookings + page ; artists = all ; admin without artist = rooms
-  const tabs = { bookings: !!artist, page: !!artist, rooms: isMember || me.is_admin };
+  const tabs = { bookings: !!artist, page: !!artist, rooms: isMember || me.is_admin, settings: true };
   $$("#mainTabs .tab").forEach((t) => t.classList.toggle("hidden", !tabs[t.dataset.tab]));
   const first = Object.keys(tabs).find((k) => tabs[k]);
   openTab($("#mainTabs .tab.active:not(.hidden)")?.dataset.tab || first);
@@ -62,6 +62,7 @@ function openTab(name) {
   if (name === "bookings") loadBookings();
   if (name === "page") loadPage();
   if (name === "rooms") loadRooms();
+  if (name === "settings") loadSettings();
 }
 
 // =============== BOOKINGS ===============
@@ -173,7 +174,7 @@ async function loadPage() {
     <div class="split">
       <section class="card">
         <div class="toolbar"><h3 class="grow">Request changes to your page</h3><a class="btn small" target="_blank" href="../artist.html?a=${esc(a.slug)}">View public page ↗</a></div>
-        <p class="muted" style="margin-bottom:1rem">Your changes are sent to Floriqa for approval before they appear on floriqa.xyz.${!isMember && mode !== "none" ? ` As a team member, ${mode === "all" ? "all the artists" : "one of the artists"} must approve them first.` : ""}</p>
+        <p class="muted" style="margin-bottom:1rem">Your changes are sent to Floriqa for approval before they appear on floriqa.xyz.${!isMember && mode !== "none" ? " As a team member, your changes must first be approved by the artist(s) chosen in their settings." : ""}</p>
         <form id="pgForm">
           <label class="field"><span>Tagline</span><input type="text" name="tagline" value="${esc(cur.tagline || "")}"></label>
           <label class="field"><span>Biography</span><textarea name="bio" style="min-height:160px">${esc(cur.bio || "")}</textarea></label>
@@ -195,12 +196,6 @@ async function loadPage() {
         </form>
       </section>
       <aside>
-        ${isMember ? `<div class="card">
-          <h3 style="margin-bottom:.6rem">Team changes</h3>
-          <p class="muted" style="margin-bottom:.6rem">When a team member requests a change, before it goes to Floriqa:</p>
-          ${[["none", "No artist approval needed"], ["one", "One artist must approve"], ["all", "All artists must approve"]].map(([k, l]) =>
-            `<label class="chk"><input type="radio" name="mode" value="${k}" ${mode === k ? "checked" : ""}> ${l}</label>`).join("")}
-        </div>` : ""}
         <div class="card"><h3 style="margin-bottom:.6rem">Requests</h3><div id="reqList">${(reqs || []).map((r) => `
           <div class="list-item" data-id="${r.id}" style="display:block">
             <div class="toolbar" style="margin:0"><span class="grow muted">${fmtDate(r.created_at)} · ${esc(r.requested_email || "")}</span><span class="badge ${RCLASS[r.status]}">${RSTATUS[r.status]}</span></div>
@@ -241,10 +236,6 @@ async function loadPage() {
     if (error) return toast("Error: " + error.message, "err");
     toast("Request sent."); loadPage();
   };
-  $$("input[name=mode]").forEach((r) => r.onchange = async () => {
-    const { error } = await sb.rpc("floriqa_set_edit_approval", { p_artist: artist.id, p_mode: r.value });
-    toast(error ? "Error: " + error.message : "Saved.", error ? "err" : "ok");
-  });
   $$("#reqList .list-item").forEach((el) => el.onclick = () => showRequest((reqs || []).find((r) => r.id === el.dataset.id)));
 }
 
@@ -264,7 +255,7 @@ function showRequest(r) {
     <h4 style="margin:1.2rem 0 .4rem">Full page after the change</h4>
     <table class="diff" style="width:100%">${FIELDS.map(([k, l]) => `<tr><td>${l}</td><td>${show(k, full[k])}</td></tr>`).join("")}</table>
     <div class="toolbar" style="margin-top:1rem">
-      ${r.status === "awaiting_artists" && isMember ? `<button class="btn primary" id="ok">Approve</button>` : ""}
+      ${r.status === "awaiting_artists" && isMember && (artist.edit_approval !== "selected" || (artist.edit_approvers || []).includes(me.email)) ? `<button class="btn primary" id="ok">Approve</button>` : ""}
       ${["awaiting_artists", "pending_admin"].includes(r.status) && (isMember || r.requested_by === user.id) ? `<button class="btn danger" id="cancel">Cancel request</button>` : ""}
     </div>`;
   document.body.appendChild(box);
@@ -456,3 +447,42 @@ async function openRoom(id) {
 }
 
 boot();
+
+// =============== SETTINGS ===============
+async function loadSettings() {
+  const myName = artist?.person || me.admin_name || "";
+  accountSettings($("#account"), { name: myName, email: me.email, redirect: location.origin + location.pathname });
+  // règle de validation pour chaque projet dont je suis artiste
+  const mine = me.artists.filter((a) => a.kind === "member");
+  if (!mine.length) { $("#teamRules").innerHTML = ""; return; }
+  const blocks = await Promise.all(mine.map(async (a) => {
+    const { data: members } = await sb.from("floriqa_contacts").select("email,name").eq("artist_id", a.id).eq("kind", "member").order("email");
+    const solo = (members || []).length <= 1;
+    const sel = a.edit_approval === "none" ? "none" : "selected";
+    const chosen = a.edit_approval === "selected" ? (a.edit_approvers || []) : (members || []).map((m) => m.email);
+    return `<div class="card" data-aid="${a.id}">
+      <h3 style="margin-bottom:.4rem">${esc(a.name)} — team changes to the artist page</h3>
+      <p class="muted" style="margin-bottom:.6rem">When someone from your team requests a change to your page, before it goes to Floriqa:</p>
+      ${solo ? `
+        <label class="chk"><input type="radio" name="m_${a.id}" value="selected" ${sel === "selected" ? "checked" : ""}> With my confirmation</label>
+        <label class="chk"><input type="radio" name="m_${a.id}" value="none" ${sel === "none" ? "checked" : ""}> Without my confirmation</label>`
+      : `
+        <label class="chk"><input type="radio" name="m_${a.id}" value="none" ${sel === "none" ? "checked" : ""}> No confirmation needed</label>
+        <label class="chk"><input type="radio" name="m_${a.id}" value="selected" ${sel === "selected" ? "checked" : ""}> Confirmation by these artists (all of the ones ticked):</label>
+        <div style="margin-left:1.6rem">${(members || []).map((m) => `<label class="chk"><input type="checkbox" value="${esc(m.email)}" ${chosen.includes(m.email) ? "checked" : ""}> ${esc(m.name || m.email)}${m.email === me.email ? " (you)" : ""}</label>`).join("")}</div>`}
+      <button class="btn small primary" data-save style="margin-top:.6rem">Save</button>
+    </div>`;
+  }));
+  $("#teamRules").innerHTML = blocks.join("");
+  $$("#teamRules [data-aid]").forEach((card) => $("[data-save]", card).onclick = async () => {
+    const id = card.dataset.aid;
+    const mode = $(`input[name=m_${id}]:checked`, card)?.value || "none";
+    const boxes = $$("input[type=checkbox]", card);
+    const approvers = boxes.length ? boxes.filter((b) => b.checked).map((b) => b.value) : [me.email];
+    const { error } = await sb.rpc("floriqa_set_edit_rule", { p_artist: id, p_mode: mode, p_approvers: approvers });
+    if (error) return toast("Error: " + error.message, "err");
+    toast("Saved.");
+    const { data } = await sb.rpc("floriqa_whoami"); me = data;
+    artist = me.artists[+$("#artistSwitch").value] || artist;
+  });
+}

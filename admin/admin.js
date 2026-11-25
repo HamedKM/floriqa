@@ -1,5 +1,5 @@
 // Floriqa — admin panel
-const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow } = Floriqa;
+const { sb, esc, media, buildChrome, toast, fmtDate, fmtSize, mail, authFlow, accountSettings } = Floriqa;
 buildChrome({ video: false });
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -31,6 +31,7 @@ async function boot() {
   await loadBookings();
   loadRequests();
   loadAdmins();
+  accountSettings($("#account"), { name: m.display_name, email: user.email, redirect: location.origin + location.pathname });
   const wanted = new URLSearchParams(location.search).get("b");
   if (wanted) showBooking(wanted);
 }
@@ -242,7 +243,7 @@ function artistForm(a) {
       <select name="kind" style="width:auto"><option value="member">Artist / member</option><option value="team">Team</option></select>
       <button class="btn" type="submit">Add contact</button>
     </form>
-    <p class="muted">Team page changes need artist approval: <b>${{ none: "none", one: "one artist", all: "all artists" }[a.edit_approval]}</b> (set by the artists).</p>
+    <p class="muted">Team page changes need approval from: <b>${a.edit_approval === "none" ? "nobody" : a.edit_approval === "selected" ? esc((a.edit_approvers || []).join(", ")) : a.edit_approval === "all" ? "all artists" : "one artist"}</b> (set by the artists in their settings).</p>
 
     <hr class="sep">
     <h3>Photos</h3>

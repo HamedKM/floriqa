@@ -92,3 +92,49 @@
 
   window.Floriqa.authFlow = authFlow;
 })();
+
+// ---------- Settings (name, e-mail, password) — shared by the panels ----------
+(function () {
+  const { sb, esc, toast } = window.Floriqa;
+  window.Floriqa.accountSettings = function (box, { name, email, redirect }) {
+    box.innerHTML = `
+      <div class="card"><h3 style="margin-bottom:.8rem">Display name</h3>
+        <form id="sName" class="toolbar"><input type="text" name="name" required maxlength="80" value="${esc(name || "")}" class="grow" style="max-width:320px"><button class="btn primary" type="submit">Save</button></form></div>
+      <div class="card"><h3 style="margin-bottom:.4rem">E-mail address</h3>
+        <p class="muted" style="margin-bottom:.8rem">Current: <b>${esc(email || "")}</b>. We'll send a confirmation link to the new address${" "}(and to the current one). Your access follows your new address once confirmed.</p>
+        <form id="sMail" class="toolbar"><input type="email" name="email" required placeholder="new e-mail" class="grow" style="max-width:320px"><button class="btn primary" type="submit">Change e-mail</button></form></div>
+      <div class="card"><h3 style="margin-bottom:.8rem">Password</h3>
+        <form id="sPw">
+          <label class="field"><span>Current password</span><input type="password" name="cur" required autocomplete="current-password"></label>
+          <div class="row2">
+            <label class="field"><span>New password (8+ characters)</span><input type="password" name="pw" required minlength="8" autocomplete="new-password"></label>
+            <label class="field"><span>Confirm new password</span><input type="password" name="pw2" required minlength="8" autocomplete="new-password"></label>
+          </div>
+          <button class="btn primary" type="submit">Change password</button>
+        </form></div>`;
+    box.querySelector("#sName").onsubmit = async (e) => {
+      e.preventDefault();
+      const { error } = await sb.rpc("floriqa_set_my_name", { p_name: e.target.name.value });
+      toast(error ? "Error: " + error.message : "Name saved.", error ? "err" : "ok");
+    };
+    box.querySelector("#sMail").onsubmit = async (e) => {
+      e.preventDefault();
+      const n = e.target.email.value.trim().toLowerCase();
+      if (n === (email || "").toLowerCase()) return toast("That's already your e-mail.", "err");
+      const { error } = await sb.auth.updateUser({ email: n }, { emailRedirectTo: redirect });
+      if (error) return toast("Error: " + error.message, "err");
+      e.target.reset();
+      toast("Check your inbox(es) and click the confirmation link.");
+    };
+    box.querySelector("#sPw").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      if (f.pw.value !== f.pw2.value) return toast("The two new passwords don't match.", "err");
+      const { error: e1 } = await sb.auth.signInWithPassword({ email, password: f.cur.value });
+      if (e1) return toast("Current password is wrong.", "err");
+      const { error } = await sb.auth.updateUser({ password: f.pw.value });
+      if (error) return toast("Error: " + error.message, "err");
+      f.reset(); toast("Password changed.");
+    };
+  };
+})();
