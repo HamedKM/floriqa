@@ -108,7 +108,7 @@ async function showBooking(id) {
     ["Event", esc(b.event)], ["Venue", esc(b.venue)], ["Date(s)", esc(b.dates)], ["Line-up", esc(b.lineup)],
     ["City / Country", `${esc(b.city)}, ${esc(b.country)}`],
     ["Social", b.social_link ? `<a target="_blank" rel="noopener" href="${esc(/^https?:/.test(b.social_link) ? b.social_link : "https://" + b.social_link)}">${esc(b.social_link)}</a>` : "—"],
-    ["B2B", esc(b.b2b || "No")], ["Duration", esc(b.duration)], ["Time", esc(b.perf_time)], ["Net fee", `<b>${esc(b.fee)} €</b>`],
+    ["B2B", esc(b.b2b || "No")], ["Duration", esc(b.duration)], ["Time", esc(b.perf_time)], ["Net fee", `<b>${esc(b.fee)}${/^[0-9.,\s]+$/.test(b.fee || "") ? " €" : ""}</b>`],
     ["Transport", yn(b.transport, b.transport_details)], ["Accommodation", yn(b.accommodation, b.accommodation_details)], ["Hospitality", yn(b.hospitality, b.hospitality_details)],
   ];
   const { data: msgs } = await sb.from("floriqa_messages").select("*").eq("booking_id", id).order("created_at");

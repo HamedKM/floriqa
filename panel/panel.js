@@ -117,7 +117,7 @@ async function openBooking(id) {
         <dt>Venue</dt><dd>${esc(b.venue)}, ${esc(b.city)} (${esc(b.country)})</dd>
         <dt>Date(s)</dt><dd>${esc(b.dates)} · ${esc(b.perf_time)} · ${esc(b.duration)}${/^[0-9.,]+$/.test(b.duration || "") ? " h" : ""}</dd>
         <dt>Line-up</dt><dd>${esc(b.lineup || "—")}${b.b2b ? ` · B2B ${esc(b.b2b)}` : ""}</dd>
-        <dt>Net fee</dt><dd><b>${esc(b.fee)} €</b></dd>
+        <dt>Net fee</dt><dd><b>${esc(b.fee)}${/^[0-9.,\s]+$/.test(b.fee || "") ? " €" : ""}</b></dd>
         <dt>Transport</dt><dd>${yn(b.transport, b.transport_details)}</dd>
         <dt>Accommodation</dt><dd>${yn(b.accommodation, b.accommodation_details)}</dd>
         <dt>Hospitality</dt><dd>${yn(b.hospitality, b.hospitality_details)}</dd>

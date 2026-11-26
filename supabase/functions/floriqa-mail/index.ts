@@ -60,7 +60,7 @@ function summary(b: any) {
   return [
     `Artist: ${b.artist_name}`, `Organisation: ${b.organization}`, `Promoter: ${b.promoter}`, `Phone: ${b.phone}`, `E-mail: ${b.email}`,
     `Event: ${b.event}`, `Venue: ${b.venue}`, `Date(s): ${b.dates}`, `Line-up: ${b.lineup || "—"}`, `City: ${b.city}, ${b.country}`,
-    `Social: ${b.social_link || "—"}`, `B2B: ${b.b2b || "No"}`, `Duration: ${b.duration}`, `Time: ${b.perf_time}`, `Net fee: ${b.fee} €`,
+    `Social: ${b.social_link || "—"}`, `B2B: ${b.b2b || "No"}`, `Duration: ${b.duration}`, `Time: ${b.perf_time}`, `Net fee: ${b.fee}${/^[0-9.,\s]+$/.test(b.fee || "") ? " €" : ""}`,
     `Transport: ${yn(b.transport, b.transport_details)}`, `Accommodation: ${yn(b.accommodation, b.accommodation_details)}`,
     `Hospitality: ${yn(b.hospitality, b.hospitality_details)}`,
   ].join("\n");
