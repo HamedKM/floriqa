@@ -13,7 +13,9 @@
     .form .date-field .dtext { flex: 1; }
     .form .date-field .dtext.empty { color: rgba(34,58,92,.6); }
     .form .date-field .del { background: none; border: 0; padding: 0 .1rem; font: inherit; font-size: 1.15rem; line-height: 1; color: var(--navy); cursor: pointer; }
-    .form .date-field input[type=date] { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; pointer-events: none; }
+    .form .date-field input[type=date] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; z-index: 1; cursor: pointer; -webkit-appearance: none; appearance: none; }
+    .form .date-field .del { position: relative; z-index: 2; }
+    .form .tpick .tnative { position: absolute; left: 0; top: 0; width: 100%; height: calc(100% - .9rem); margin: 0; padding: 0; opacity: 0; z-index: 1; -webkit-appearance: none; appearance: none; }
     .form .link-btn { display: block; background: none; border: 0; color: #fff; font: inherit; font-size: .95rem; cursor: pointer; padding: 0; margin: -.3rem 0 .9rem; }
     .form select:invalid { color: rgba(34,58,92,.6); }
     .form select option { color: var(--navy); }
@@ -40,7 +42,7 @@
     .time-pop .tcol button.on { background: var(--navy); color: #fff; font-weight: 600; }
     .time-pop .tdone { display: block; width: 100%; margin-top: .4rem; border: 0; border-radius: 6px; padding: .45rem 1.2rem; font: inherit; font-weight: 700; color: #fff; background: var(--navy); cursor: pointer; }
   </style>
-  <link rel="stylesheet" href="assets/floriqa.css?v=1795651323" />
+  <link rel="stylesheet" href="assets/floriqa.css?v=1795651659" />
 </head>
 <body>
   <main class="page">
@@ -106,8 +108,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/config.js?v=1795651323"></script>
-  <script src="assets/common.js?v=1795651323"></script>
+  <script src="assets/config.js?v=1795651659"></script>
+  <script src="assets/common.js?v=1795651659"></script>
   <script>
     const { sb, buildChrome, toast } = Floriqa;
     buildChrome({ active: "Affair" });
@@ -222,10 +224,9 @@
       blk.date = () => inp.value;
       const paintDate = () => { txt.textContent = inp.value ? fmtDay(inp.value) : DATE_PH; txt.classList.toggle("empty", !inp.value); };
       inp.addEventListener("change", paintDate);
-      df.addEventListener("click", (e) => {
-        if (e.target.closest(".del")) return;
-        try { inp.showPicker(); } catch { inp.style.pointerEvents = "auto"; inp.focus(); inp.click(); }
-      });
+      inp.addEventListener("input", paintDate);
+      // le vrai champ date couvre la case : sur téléphone, le toucher ouvre le calendrier natif
+      inp.addEventListener("click", () => { try { inp.showPicker(); } catch {} });
       df.querySelector(".del").onclick = () => {
         if (perfs.length > 1) { blk.el.remove(); perfs.splice(perfs.indexOf(blk), 1); } else { inp.value = ""; paintDate(); }
       };
@@ -236,8 +237,35 @@
       // horaires : début 1:00 AM, fin = début + 3 h tant qu'on ne l'a pas réglée soi-même
       const paintTime = (f) => { const t = blk.times[f.dataset.time]; f.innerHTML = `${CLOCK}<span class="${t ? "" : "empty"}">${t ? timeLabel(t) : f.dataset.ph}</span>`; };
       const fields = [...blk.el.querySelectorAll(".time-field")];
+      const touch = matchMedia("(pointer: coarse)").matches;
+      const toT = (v) => { const [H, M] = v.split(":").map(Number); return { h: H % 12 || 12, m: M, ap: H < 12 ? "AM" : "PM" }; };
+      const toV = (t) => `${String((t.h % 12) + (t.ap === "PM" ? 12 : 0)).padStart(2, "0")}:${String(t.m).padStart(2, "0")}`;
       fields.forEach((f) => {
         paintTime(f);
+        if (touch) {
+          // téléphone : sélecteur d'heure natif (heures, minutes, AM/PM)
+          const k = f.dataset.time, nat = document.createElement("input");
+          nat.type = "time"; nat.className = "tnative"; nat.setAttribute("aria-label", f.dataset.ph);
+          f.parentElement.appendChild(nat);
+          const prefill = () => {
+            if (nat.value) return;
+            const t = blk.times[k] || (k === "start" ? { h: 1, m: 0, ap: "AM" } : shift3h(blk.times.start || { h: 1, m: 0, ap: "AM" }));
+            nat.value = toV(t);
+          };
+          nat.addEventListener("pointerdown", prefill);
+          nat.addEventListener("focus", prefill);
+          const apply = () => {
+            if (!nat.value) return;
+            blk.times[k] = toT(nat.value);
+            if (k === "start" && !blk.times.end) {
+              // la fin n'est pas encore choisie : son sélecteur s'ouvrira sur début + 3 h
+              const other = blk.el.querySelector('.tpick .tnative[aria-label="Set ends"]'); if (other) other.value = toV(shift3h(blk.times.start));
+            }
+            fields.forEach(paintTime);
+          };
+          nat.addEventListener("input", apply); nat.addEventListener("change", apply); nat.addEventListener("blur", apply);
+          return;
+        }
         const open = () => {
           if (openPop?._field === f) return closePop();
           closePop();
