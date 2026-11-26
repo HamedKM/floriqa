@@ -82,7 +82,8 @@
 })();
 
 // Lien vers le formulaire de booking avec l'artiste pré-rempli
-window.Floriqa.bookingUrl = (name) => new URL(`affair.html?artist=${encodeURIComponent(name)}`, new URL(window.Floriqa.BASE || "./", location.href)).href;
+// avec le slug : /book/<slug>/ (l'aperçu du lien montre la photo de l'artiste, puis ouvre le formulaire)
+window.Floriqa.bookingUrl = (name, slug) => new URL(slug ? `book/${slug}/` : `affair.html?artist=${encodeURIComponent(name)}`, new URL(window.Floriqa.BASE || "./", location.href)).href;
 window.Floriqa.copyText = async (t) => { try { await navigator.clipboard.writeText(t); window.Floriqa.toast("Link copied."); } catch { prompt("Copy this link:", t); } };
 
 // Fenêtre de confirmation (verre noir) — renvoie true / false

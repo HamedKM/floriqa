@@ -81,7 +81,7 @@ async function loadBookings() {
     .select("id,created_at,status,artist_name,promoter,organization,event,venue,dates,city,country,fee,duration,perf_time,b2b,lineup,transport,transport_details,accommodation,accommodation_details,hospitality,hospitality_details, floriqa_messages(count)")
     .eq("artist_id", artist.id).order("created_at", { ascending: false });
   bookings = data || [];
-  const url = Floriqa.bookingUrl(artist.name);
+  const url = Floriqa.bookingUrl(artist.name, artist.slug);
   $("#bkLinkBar").innerHTML = `<span class="grow">Booking form for <b>${esc(artist.name)}</b> — share it with promoters</span>
     <button class="btn small" id="bkLinkCopy">Copy link</button><a class="btn small" target="_blank" rel="noopener" href="${esc(url)}">Open form ↗</a>`;
   $("#bkLinkCopy").onclick = () => Floriqa.copyText(url);
